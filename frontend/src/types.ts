@@ -50,6 +50,48 @@ export interface Diagram {
   last_error: string;
 }
 
+export type ReuseMode = "linked" | "snapshot" | "forked";
+
+export interface ReusableBlock {
+  id: number;
+  block_id: string;
+  title: string;
+  category: string;
+  version: string;
+  status: string;
+  owner: string;
+  tags: string[];
+  body: string;
+  scope: string | null;
+  derived_from: string | null;
+  derived_from_version: string;
+  derivation_type: string | null;
+  document_id: number | null;
+}
+
+export interface ReuseInstance {
+  id: number;
+  document_id: number;
+  section_id: number;
+  block_id: string;
+  reuse_mode: ReuseMode;
+  source_version: string;
+  derived_block_id: string | null;
+  rationale: string;
+  status: string;
+  order_index: number;
+  title: string;
+  body: string;
+  library_version: string | null;
+  library_status: string | null;
+  broken: boolean;
+}
+
+export interface BlockCompare {
+  source: ReusableBlock | null;
+  derived: ReusableBlock | null;
+}
+
 export interface HldDocument {
   id: number;
   increment_id: number;
@@ -59,6 +101,7 @@ export interface HldDocument {
   head_commit: string | null;
   sections: Section[];
   diagrams: Diagram[];
+  reuse_instances: ReuseInstance[];
   breadcrumb: Record<string, string>;
 }
 

@@ -115,8 +115,11 @@ export default function HldEditorPage() {
           )}
         </main>
         <ContextPanel
+          document={doc}
+          selectedSectionId={selected?.id ?? null}
           validation={validation}
           onValidate={runValidation}
+          onReload={reload}
         />
       </div>
     </div>

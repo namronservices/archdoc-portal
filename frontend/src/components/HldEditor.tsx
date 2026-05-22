@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import type { HldDocument, Section, SectionKind } from "../types";
 import MilkdownEditor from "./MilkdownEditor";
 import MermaidBlock from "./MermaidBlock";
+import ReuseBlockCard from "./ReuseBlockCard";
 
 const KIND_LABEL: Record<SectionKind, string> = {
   template_required: "Required template chapter",
@@ -27,6 +28,9 @@ export default function HldEditor({ document, section, onReload }: Props) {
   const diagrams = document.diagrams.filter(
     (d) => d.section_id === section.id,
   );
+  const reuseInstances = document.reuse_instances
+    .filter((r) => r.section_id === section.id)
+    .sort((a, b) => a.order_index - b.order_index);
   const isCustom = section.kind === "custom";
 
   function scheduleSave(content: string, nextTitle: string) {
@@ -100,6 +104,22 @@ export default function HldEditor({ document, section, onReload }: Props) {
         defaultValue={section.content}
         onChange={handleContentChange}
       />
+
+      {reuseInstances.length > 0 && (
+        <div className="mt-6 space-y-3">
+          <h3 className="text-sm font-semibold text-slate-600">
+            Reused blocks
+          </h3>
+          {reuseInstances.map((r) => (
+            <ReuseBlockCard
+              key={r.id}
+              documentId={document.id}
+              instance={r}
+              onReload={onReload}
+            />
+          ))}
+        </div>
+      )}
 
       <div className="mt-8 space-y-4">
         <div className="flex items-center justify-between">

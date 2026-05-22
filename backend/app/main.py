@@ -4,7 +4,15 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import diagrams, documents, hld, increments, repositories
+from app.routers import (
+    diagrams,
+    documents,
+    hld,
+    increments,
+    repositories,
+    reusable_blocks,
+    reuse,
+)
 
 app = FastAPI(title="ArchDoc Portal API", version="0.1.0")
 
@@ -21,6 +29,8 @@ app.include_router(increments.router)
 app.include_router(hld.router)
 app.include_router(diagrams.router)
 app.include_router(documents.router)
+app.include_router(reusable_blocks.router)
+app.include_router(reuse.router)
 
 
 @app.get("/health", tags=["meta"])

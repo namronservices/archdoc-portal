@@ -108,6 +108,9 @@ class Document(Base):
     diagrams: Mapped[list["Diagram"]] = relationship(
         back_populates="document", cascade="all, delete-orphan"
     )
+    reuse_instances: Mapped[list["DocumentReuseInstance"]] = relationship(
+        back_populates="document", cascade="all, delete-orphan"
+    )
 
 
 # Section kinds — drives the required/template/custom marker in the UI.
@@ -191,3 +194,67 @@ class ValidationResult(Base):
     severity: Mapped[str] = mapped_column(String(20), default="warning")
     message: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+# Reuse modes — how a reusable block is embedded in a document.
+REUSE_LINKED = "linked"
+REUSE_SNAPSHOT = "snapshot"
+REUSE_FORKED = "forked"
+
+
+class ReusableBlock(Base):
+    """A reusable architecture block.
+
+    Two flavours share this table:
+      * library blocks — synced from the shared ``architecture-library`` repo
+        (``document_id`` is NULL);
+      * local forks — derived from a library block and scoped to one document
+        (``document_id`` set, ``derivation_type`` = ``fork``).
+    """
+
+    __tablename__ = "reusable_blocks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    block_id: Mapped[str] = mapped_column(String(200), unique=True, index=True)
+    title: Mapped[str] = mapped_column(String(300))
+    category: Mapped[str] = mapped_column(String(80), default="")
+    version: Mapped[str] = mapped_column(String(40), default="")
+    status: Mapped[str] = mapped_column(String(40), default="draft")
+    owner: Mapped[str] = mapped_column(String(120), default="")
+    tags: Mapped[str] = mapped_column(Text, default="[]")  # JSON array
+    body: Mapped[str] = mapped_column(Text, default="")
+    git_path: Mapped[str] = mapped_column(String(500), default="")
+    scope: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    derived_from: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    derived_from_version: Mapped[str] = mapped_column(String(40), default="")
+    derivation_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    document_id: Mapped[int | None] = mapped_column(
+        ForeignKey("documents.id"), nullable=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class DocumentReuseInstance(Base):
+    """An occurrence of a reusable block embedded in a document section."""
+
+    __tablename__ = "document_reuse_instances"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(ForeignKey("documents.id"))
+    section_id: Mapped[int] = mapped_column(ForeignKey("document_sections.id"))
+    block_id: Mapped[str] = mapped_column(String(200))
+    reuse_mode: Mapped[str] = mapped_column(String(20))
+    source_version: Mapped[str] = mapped_column(String(40), default="")
+    derived_block_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    snapshot_content: Mapped[str] = mapped_column(Text, default="")
+    rationale: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(40), default="active")
+    order_index: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    document: Mapped[Document] = relationship(back_populates="reuse_instances")

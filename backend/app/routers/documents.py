@@ -10,8 +10,11 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import (
     KIND_TEMPLATE_REQUIRED,
+    REUSE_FORKED,
+    REUSE_LINKED,
     Document,
     ExportJob,
+    ReusableBlock,
     ValidationResult,
 )
 from app.schemas import (
@@ -37,6 +40,17 @@ def _get_document(document_id: int, db: Session) -> Document:
 
 def _repo_slug(document: Document) -> str:
     return document.increment.application_group.repository.slug
+
+
+def _version_lt(a: str, b: str) -> bool:
+    """True when version ``a`` is older than ``b`` (dotted-numeric compare)."""
+    def parts(v: str) -> tuple[int, ...]:
+        return tuple(int(p) if p.isdigit() else 0 for p in str(v).split("."))
+
+    try:
+        return parts(a) < parts(b)
+    except (ValueError, TypeError):
+        return a != b
 
 
 @router.post("/api/documents/{document_id}/save", response_model=CommitInfoOut)
@@ -119,6 +133,70 @@ def validate_document(document_id: int, db: Session = Depends(get_db)):
                     message=f"Diagram '{diagram.name}' has not been rendered yet",
                 )
             )
+
+    # Reusable block reuse checks (core subset).
+    blocks = {b.block_id: b for b in db.query(ReusableBlock).all()}
+    for inst in document.reuse_instances:
+        if inst.reuse_mode == REUSE_LINKED:
+            library = blocks.get(inst.block_id)
+            if library is None:
+                items.append(
+                    ValidationItem(
+                        severity="error",
+                        section_id=inst.section_id,
+                        message=f"Linked block '{inst.block_id}' reference is broken",
+                    )
+                )
+                continue
+            if library.status != "approved":
+                items.append(
+                    ValidationItem(
+                        severity="warning",
+                        section_id=inst.section_id,
+                        message=(
+                            f"Reused block '{library.title}' is not approved "
+                            f"(status: {library.status})"
+                        ),
+                    )
+                )
+            if _version_lt(inst.source_version, library.version):
+                items.append(
+                    ValidationItem(
+                        severity="info",
+                        section_id=inst.section_id,
+                        message=(
+                            f"Linked block '{library.title}' has a newer approved "
+                            f"version {library.version} (using {inst.source_version})"
+                        ),
+                    )
+                )
+        elif inst.reuse_mode == REUSE_FORKED:
+            fork = (
+                blocks.get(inst.derived_block_id)
+                if inst.derived_block_id
+                else None
+            )
+            if fork is None:
+                items.append(
+                    ValidationItem(
+                        severity="error",
+                        section_id=inst.section_id,
+                        message=(
+                            f"Forked block '{inst.derived_block_id}' is missing"
+                        ),
+                    )
+                )
+            if not inst.rationale.strip():
+                items.append(
+                    ValidationItem(
+                        severity="warning",
+                        section_id=inst.section_id,
+                        message=(
+                            f"Forked block '{inst.derived_block_id or inst.block_id}' "
+                            "has no fork rationale"
+                        ),
+                    )
+                )
 
     # Persist a snapshot of the latest validation run.
     db.query(ValidationResult).filter_by(document_id=document_id).delete()

@@ -1,11 +1,14 @@
 import type {
   ApplicationGroup,
+  BlockCompare,
   CommitInfo,
   Diagram,
   ExportJob,
   HldDocument,
   Increment,
   Repository,
+  ReusableBlock,
+  ReuseInstance,
   Section,
   ValidationResponse,
 } from "../types";
@@ -116,4 +119,60 @@ export const api = {
     request<ValidationResponse>(`/api/documents/${documentId}/validation`),
   exportDownloadUrl: (jobId: number) =>
     `${BASE_URL}/api/exports/${jobId}/download`,
+
+  // Reusable blocks
+  listReusableBlocks: (category?: string, q?: string) => {
+    const params = new URLSearchParams();
+    if (category) params.set("category", category);
+    if (q) params.set("q", q);
+    const qs = params.toString();
+    return request<ReusableBlock[]>(
+      `/api/reusable-blocks${qs ? `?${qs}` : ""}`,
+    );
+  },
+  getReusableBlock: (blockId: string) =>
+    request<ReusableBlock>(`/api/reusable-blocks/${blockId}`),
+  compareBlocks: (blockId: string, derivedBlockId: string) =>
+    request<BlockCompare>(
+      `/api/reusable-blocks/${blockId}/compare/${derivedBlockId}`,
+    ),
+  promoteBlock: (blockId: string) =>
+    request<ReusableBlock>(`/api/reusable-blocks/${blockId}/promote`, {
+      method: "POST",
+    }),
+
+  // Reuse instances
+  insertLinked: (documentId: number, blockId: string, sectionId: number) =>
+    request<HldDocument>(
+      `/api/hlds/${documentId}/reuse/${blockId}/insert-linked`,
+      { method: "POST", body: body({ section_id: sectionId }) },
+    ),
+  insertSnapshot: (documentId: number, blockId: string, sectionId: number) =>
+    request<HldDocument>(
+      `/api/hlds/${documentId}/reuse/${blockId}/insert-snapshot`,
+      { method: "POST", body: body({ section_id: sectionId }) },
+    ),
+  forkBlock: (
+    documentId: number,
+    blockId: string,
+    sectionId: number,
+    title?: string,
+  ) =>
+    request<HldDocument>(`/api/hlds/${documentId}/reuse/${blockId}/fork`, {
+      method: "POST",
+      body: body({ section_id: sectionId, title }),
+    }),
+  updateReuseInstance: (
+    documentId: number,
+    instanceId: number,
+    data: { body?: string; rationale?: string; status?: string },
+  ) =>
+    request<ReuseInstance>(`/api/hlds/${documentId}/reuse/${instanceId}`, {
+      method: "PUT",
+      body: body(data),
+    }),
+  deleteReuseInstance: (documentId: number, instanceId: number) =>
+    request<HldDocument>(`/api/hlds/${documentId}/reuse/${instanceId}`, {
+      method: "DELETE",
+    }),
 };

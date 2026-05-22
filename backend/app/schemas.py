@@ -116,6 +116,64 @@ class DiagramOut(ORMModel):
     last_error: str
 
 
+# --- Reusable blocks ----------------------------------------------------
+class ReusableBlockOut(BaseModel):
+    id: int
+    block_id: str
+    title: str
+    category: str
+    version: str
+    status: str
+    owner: str
+    tags: list[str]
+    body: str
+    scope: str | None = None
+    derived_from: str | None = None
+    derived_from_version: str = ""
+    derivation_type: str | None = None
+    document_id: int | None = None
+
+
+class ReuseInstanceOut(BaseModel):
+    id: int
+    document_id: int
+    section_id: int
+    block_id: str
+    reuse_mode: str
+    source_version: str
+    derived_block_id: str | None = None
+    rationale: str
+    status: str
+    order_index: int
+    title: str
+    body: str
+    library_version: str | None = None
+    library_status: str | None = None
+    broken: bool = False
+
+
+class InsertReuseRequest(BaseModel):
+    section_id: int
+
+
+class ForkRequest(BaseModel):
+    section_id: int
+    new_block_id: str | None = Field(default=None, max_length=200)
+    title: str | None = Field(default=None, max_length=300)
+    scope: str = Field(default="hld-local", max_length=40)
+
+
+class ReuseInstanceUpdate(BaseModel):
+    body: str | None = None
+    rationale: str | None = None
+    status: str | None = None
+
+
+class BlockCompareOut(BaseModel):
+    source: ReusableBlockOut | None = None
+    derived: ReusableBlockOut | None = None
+
+
 class DocumentOut(ORMModel):
     id: int
     increment_id: int
@@ -125,6 +183,7 @@ class DocumentOut(ORMModel):
     head_commit: str | None
     sections: list[SectionOut]
     diagrams: list[DiagramOut]
+    reuse_instances: list[ReuseInstanceOut]
     breadcrumb: dict[str, str]
 
 
