@@ -1,15 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../api/client";
-import type {
-  CommitInfo,
-  HldDocument,
-  ValidationItem,
-} from "../types";
-import TopBar from "../components/TopBar";
+import type { CommitInfo, HldDocument, ValidationItem } from "../types";
+import AppHeader from "../components/AppHeader";
+import DocumentHeader from "../components/DocumentHeader";
 import StructurePanel from "../components/StructurePanel";
 import HldEditor from "../components/HldEditor";
 import ContextPanel from "../components/ContextPanel";
+import EditorFooter from "../components/EditorFooter";
 
 export default function HldEditorPage() {
   const { documentId } = useParams();
@@ -72,7 +70,7 @@ export default function HldEditorPage() {
   }
 
   if (error && !doc) {
-    return <div className="p-6 text-sm text-red-700">{error}</div>;
+    return <div className="p-6 text-sm text-rose-700">{error}</div>;
   }
   if (!doc) {
     return <div className="p-6 text-sm text-slate-500">Loading HLD…</div>;
@@ -82,16 +80,13 @@ export default function HldEditorPage() {
     doc.sections.find((s) => s.id === selectedId) ?? doc.sections[0] ?? null;
 
   return (
-    <div className="flex h-screen flex-col">
-      <TopBar
+    <div className="flex h-screen flex-col bg-slate-100">
+      <AppHeader
         breadcrumb={doc.breadcrumb}
-        headCommit={doc.head_commit}
-        commit={commit}
-        status={status}
-        error={error}
         onSave={handleSave}
         onExport={handleExport}
       />
+      <DocumentHeader document={doc} />
       <div className="flex min-h-0 flex-1">
         <StructurePanel
           document={doc}
@@ -100,7 +95,7 @@ export default function HldEditorPage() {
           onSelect={setSelectedId}
           onReload={reload}
         />
-        <main className="min-w-0 flex-1 overflow-y-auto bg-white">
+        <main className="scroll-thin min-w-0 flex-1 overflow-y-auto">
           {selected ? (
             <HldEditor
               key={selected.id}
@@ -122,6 +117,12 @@ export default function HldEditorPage() {
           onReload={reload}
         />
       </div>
+      <EditorFooter
+        status={status}
+        error={error}
+        commit={commit}
+        headCommit={doc.head_commit}
+      />
     </div>
   );
 }

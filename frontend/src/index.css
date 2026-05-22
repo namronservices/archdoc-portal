@@ -10,15 +10,80 @@ body,
 
 body {
   margin: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  color: #1e293b;
+  font-family: theme("fontFamily.sans");
+  color: #0f172a;
+  background: #f1f5f9;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Milkdown editor surface */
+/* ---- Milkdown editor surface — document-like typography ---- */
 .milkdown {
   outline: none;
 }
 .milkdown .ProseMirror {
-  min-height: 240px;
-  padding: 1rem 0;
+  min-height: 320px;
+  padding: 0.25rem 0 1rem;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: #1e293b;
+}
+.milkdown .ProseMirror > * + * {
+  margin-top: 0.85rem;
+}
+.milkdown .ProseMirror h1,
+.milkdown .ProseMirror h2,
+.milkdown .ProseMirror h3 {
+  font-weight: 650;
+  color: #0f172a;
+  line-height: 1.3;
+}
+.milkdown .ProseMirror h1 {
+  font-size: 1.6rem;
+  margin-top: 1.6rem;
+}
+.milkdown .ProseMirror h2 {
+  font-size: 1.3rem;
+  margin-top: 1.4rem;
+}
+.milkdown .ProseMirror h3 {
+  font-size: 1.1rem;
+  margin-top: 1.2rem;
+}
+.milkdown .ProseMirror blockquote {
+  border-left: 3px solid #c7d2fe;
+  background: #eef2ff;
+  border-radius: 0 0.5rem 0.5rem 0;
+  padding: 0.6rem 0.9rem;
+  color: #3730a3;
+}
+.milkdown .ProseMirror ul,
+.milkdown .ProseMirror ol {
+  padding-left: 1.4rem;
+}
+.milkdown .ProseMirror code {
+  background: #f1f5f9;
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.3rem;
+  font-size: 0.85em;
+}
+.milkdown .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.milkdown .ProseMirror th,
+.milkdown .ProseMirror td {
+  border: 1px solid #e2e8f0;
+  padding: 0.4rem 0.6rem;
+}
+
+/* Thin, calm scrollbars for the side panels */
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
 }

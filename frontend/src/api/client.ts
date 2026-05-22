@@ -90,6 +90,14 @@ export const api = {
       method: "POST",
       body: body({ parent_id: parentId, title }),
     }),
+  updateStructure: (
+    documentId: number,
+    items: { id: number; parent_id: number | null; order_index: number }[],
+  ) =>
+    request<HldDocument>(`/api/hlds/${documentId}/structure`, {
+      method: "PUT",
+      body: body({ items }),
+    }),
 
   // Diagrams
   createDiagram: (documentId: number, sectionId: number, name: string) =>

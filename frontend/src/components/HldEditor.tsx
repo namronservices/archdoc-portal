@@ -1,14 +1,17 @@
 import { useRef, useState } from "react";
+import { Plus, Workflow } from "lucide-react";
 import { api } from "../api/client";
 import type { HldDocument, Section, SectionKind } from "../types";
 import MilkdownEditor from "./MilkdownEditor";
 import MermaidBlock from "./MermaidBlock";
 import ReuseBlockCard from "./ReuseBlockCard";
+import { Badge } from "./ui";
+import type { Tone } from "./ui";
 
-const KIND_LABEL: Record<SectionKind, string> = {
-  template_required: "Required template chapter",
-  template_optional: "Template chapter",
-  custom: "Custom section",
+const KIND: Record<SectionKind, { label: string; tone: Tone }> = {
+  template_required: { label: "Required template chapter", tone: "rose" },
+  template_optional: { label: "Template chapter", tone: "slate" },
+  custom: { label: "Custom section", tone: "indigo" },
 };
 
 interface Props {
@@ -17,21 +20,20 @@ interface Props {
   onReload: () => Promise<HldDocument>;
 }
 
-/** Center panel: focused WYSIWYG editor for one section plus its diagrams. */
+/** Center panel: document-like WYSIWYG editor for one section. */
 export default function HldEditor({ document, section, onReload }: Props) {
   const [title, setTitle] = useState(section.title);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">(
     "idle",
   );
   const timer = useRef<number | undefined>(undefined);
+  const contentRef = useRef(section.content);
 
-  const diagrams = document.diagrams.filter(
-    (d) => d.section_id === section.id,
-  );
+  const diagrams = document.diagrams.filter((d) => d.section_id === section.id);
   const reuseInstances = document.reuse_instances
     .filter((r) => r.section_id === section.id)
     .sort((a, b) => a.order_index - b.order_index);
-  const isCustom = section.kind === "custom";
+  const kind = KIND[section.kind];
 
   function scheduleSave(content: string, nextTitle: string) {
     setSaveState("saving");
@@ -48,8 +50,6 @@ export default function HldEditor({ document, section, onReload }: Props) {
       }
     }, 800);
   }
-
-  const contentRef = useRef(section.content);
 
   function handleContentChange(markdown: string) {
     contentRef.current = markdown;
@@ -70,78 +70,74 @@ export default function HldEditor({ document, section, onReload }: Props) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-8 py-6">
-      <div className="mb-1 flex items-center gap-2">
-        <span className="text-sm text-slate-400">{section.number}</span>
-        <span
-          className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
-            isCustom
-              ? "bg-indigo-100 text-indigo-700"
-              : section.kind === "template_required"
-                ? "bg-rose-100 text-rose-700"
-                : "bg-slate-200 text-slate-600"
-          }`}
-        >
-          {KIND_LABEL[section.kind]}
-        </span>
-        <span className="ml-auto text-xs text-slate-400">
-          {saveState === "saving"
-            ? "Saving…"
-            : saveState === "saved"
-              ? "Saved"
-              : ""}
-        </span>
-      </div>
+    <div className="mx-auto max-w-3xl px-6 py-6">
+      <article className="rounded-xl border border-slate-200 bg-white px-8 py-7 shadow-card">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-sm font-semibold tabular-nums text-slate-500">
+            {section.number}
+          </span>
+          <Badge tone={kind.tone}>{kind.label}</Badge>
+          <span className="ml-auto text-xs text-slate-400">
+            {saveState === "saving"
+              ? "Saving…"
+              : saveState === "saved"
+                ? "Saved"
+                : ""}
+          </span>
+        </div>
 
-      <input
-        className="mb-4 w-full border-b border-transparent text-2xl font-bold outline-none focus:border-slate-300"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        onBlur={handleTitleBlur}
-      />
+        <input
+          className="mb-5 w-full border-b border-transparent pb-1 text-2xl font-bold text-slate-900 outline-none transition focus:border-slate-300"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onBlur={handleTitleBlur}
+        />
 
-      <MilkdownEditor
-        defaultValue={section.content}
-        onChange={handleContentChange}
-      />
+        <MilkdownEditor
+          defaultValue={section.content}
+          onChange={handleContentChange}
+        />
 
-      {reuseInstances.length > 0 && (
-        <div className="mt-6 space-y-3">
-          <h3 className="text-sm font-semibold text-slate-600">
-            Reused blocks
-          </h3>
-          {reuseInstances.map((r) => (
-            <ReuseBlockCard
-              key={r.id}
-              documentId={document.id}
-              instance={r}
-              onReload={onReload}
-            />
+        {reuseInstances.length > 0 && (
+          <div className="mt-6 space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Reused blocks
+            </h3>
+            {reuseInstances.map((r) => (
+              <ReuseBlockCard
+                key={r.id}
+                documentId={document.id}
+                instance={r}
+                onReload={onReload}
+              />
+            ))}
+          </div>
+        )}
+
+        <div className="mt-8 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <Workflow size={13} />
+              Diagrams
+            </h3>
+            <button
+              className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              onClick={addDiagram}
+            >
+              <Plus size={13} />
+              Add Mermaid diagram
+            </button>
+          </div>
+          {diagrams.length === 0 && (
+            <p className="text-xs text-slate-400">
+              No diagrams in this section yet.
+            </p>
+          )}
+          {diagrams.map((d) => (
+            <MermaidBlock key={d.id} diagram={d} />
           ))}
         </div>
-      )}
-
-      <div className="mt-8 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-600">
-            Diagrams
-          </h3>
-          <button
-            className="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50"
-            onClick={addDiagram}
-          >
-            + Add Mermaid diagram
-          </button>
-        </div>
-        {diagrams.length === 0 && (
-          <p className="text-xs text-slate-400">
-            No diagrams in this section yet.
-          </p>
-        )}
-        {diagrams.map((d) => (
-          <MermaidBlock key={d.id} diagram={d} />
-        ))}
-      </div>
+      </article>
     </div>
   );
 }

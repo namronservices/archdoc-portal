@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Boxes } from "lucide-react";
 import { api } from "../api/client";
 import type { ApplicationGroup, Increment, Repository } from "../types";
 
@@ -19,8 +20,10 @@ function StepCard({
 }) {
   return (
     <div
-      className={`rounded-lg border p-5 ${
-        active ? "border-slate-800 bg-white" : "border-slate-200 bg-slate-50"
+      className={`rounded-xl border p-5 ${
+        active
+          ? "border-brand bg-white shadow-card"
+          : "border-slate-200 bg-slate-50"
       }`}
     >
       <div className="mb-3 flex items-center gap-2">
@@ -29,7 +32,7 @@ function StepCard({
             done
               ? "bg-emerald-600 text-white"
               : active
-                ? "bg-slate-800 text-white"
+                ? "bg-brand text-white"
                 : "bg-slate-300 text-slate-600"
           }`}
         >
@@ -73,7 +76,7 @@ function CreateRow({
         onKeyDown={(e) => e.key === "Enter" && submit()}
       />
       <button
-        className="rounded bg-slate-800 px-3 py-1.5 text-sm text-white disabled:opacity-50"
+        className="rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-fg disabled:opacity-50"
         disabled={busy || !name.trim()}
         onClick={submit}
       >
@@ -132,11 +135,18 @@ export default function HomePage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-10">
-      <h1 className="mb-1 text-2xl font-bold">ArchDoc Portal</h1>
-      <p className="mb-6 text-sm text-slate-500">
-        Set up a workspace, then author a High-Level Design.
-      </p>
+    <div className="mx-auto max-w-2xl px-6 py-12">
+      <div className="mb-6 flex items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand text-white">
+          <Boxes size={24} />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">ArchDoc Portal</h1>
+          <p className="text-sm text-slate-500">
+            Set up a workspace, then author a High-Level Design.
+          </p>
+        </div>
+      </div>
 
       {error && (
         <div className="mb-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -152,7 +162,7 @@ export default function HomePage() {
                 key={r.id}
                 className={`block w-full rounded border px-3 py-1.5 text-left text-sm ${
                   repo?.id === r.id
-                    ? "border-slate-800 bg-slate-100"
+                    ? "border-brand bg-brand-soft"
                     : "border-slate-200 hover:bg-slate-50"
                 }`}
                 onClick={() => setRepo(r)}
@@ -185,7 +195,7 @@ export default function HomePage() {
                 key={g.id}
                 className={`block w-full rounded border px-3 py-1.5 text-left text-sm ${
                   group?.id === g.id
-                    ? "border-slate-800 bg-slate-100"
+                    ? "border-brand bg-brand-soft"
                     : "border-slate-200 hover:bg-slate-50"
                 }`}
                 onClick={() => setGroup(g)}
@@ -234,7 +244,7 @@ export default function HomePage() {
           done={false}
         >
           <button
-            className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-fg disabled:opacity-50"
             disabled={busy || !increment}
             onClick={createHld}
           >

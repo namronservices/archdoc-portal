@@ -34,6 +34,18 @@ can miss newly published ports. If the site won't load, add the forwards:
 The forwards last for the life of the Colima VM (re-run after `colima restart`
 or a reboot). Docker Desktop / OrbStack users do not need this.
 
+### Adding a frontend dependency
+
+The `frontend` service keeps `node_modules` in an anonymous volume
+(`docker-compose.yml`), so it is **not** updated by a host-side `npm install`
+or by `docker compose up --build` (the volume shadows the rebuilt image). After
+changing `frontend/package.json`, install into the running container:
+
+```bash
+docker compose exec frontend npm install
+docker compose restart frontend
+```
+
 ## Layout
 
 ```
