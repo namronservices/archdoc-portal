@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-archdoc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-archdoc}
+      POSTGRES_DB: ${POSTGRES_DB:-archdoc}
+    ports:
+      # Host port for optional external access; the backend uses the
+      # internal network and does not need this publish.
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-archdoc}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://archdoc:archdoc@postgres:5432/archdoc}
+      GIT_DATA_ROOT: /data/git
+      ARTIFACTS_ROOT: /data/artifacts
+      GIT_AUTHOR_NAME: ${GIT_AUTHOR_NAME:-ArchDoc Portal}
+      GIT_AUTHOR_EMAIL: ${GIT_AUTHOR_EMAIL:-portal@archdoc.local}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+      - git-data:/data/git
+      - artifacts-data:/data/artifacts
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0
+
+volumes:
+  postgres-data:
+  git-data:
+  artifacts-data:

@@ -1,0 +1,66 @@
+# Default High-Level Design template.
+# kind: template_required | template_optional
+title: High-Level Design
+
+chapters:
+  - title: Executive Summary
+    kind: template_required
+    content: |
+      Summarize the architecture increment, its purpose, and the key decisions
+      at a glance for executive readers.
+
+  - title: Business Context
+    kind: template_required
+    content: |
+      Describe the business drivers, capabilities, and outcomes this increment
+      supports.
+
+  - title: System Context
+    kind: template_required
+    content: |
+      Describe the systems in scope and their external actors and dependencies.
+
+  - title: Transition Architecture
+    kind: template_required
+    content: |
+      Describe how the architecture moves from its current to its target state.
+    subchapters:
+      - title: Current State Overview
+        kind: template_required
+        content: |
+          Describe the current-state architecture relevant to this increment.
+      - title: Transition State
+        kind: template_required
+        content: |
+          Describe the intermediate transition state(s).
+      - title: Target State Overview
+        kind: template_required
+        content: |
+          Describe the target-state architecture.
+
+  - title: Integration Overview
+    kind: template_required
+    content: |
+      Describe the integrations in scope across gRPC, Kafka, MQ, SOAP, REST,
+      file, and batch.
+
+  - title: Security Architecture
+    kind: template_required
+    content: |
+      Describe authentication, authorization, data protection, and trust
+      boundaries.
+
+  - title: Observability & Operations
+    kind: template_optional
+    content: |
+      Describe logging, metrics, tracing, alerting, and operational concerns.
+
+  - title: Data Architecture
+    kind: template_optional
+    content: |
+      Describe key data entities, ownership, flows, and storage.
+
+  - title: Risks & Decisions
+    kind: template_optional
+    content: |
+      Capture architecture decisions, open risks, and mitigations.
