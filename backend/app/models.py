@@ -111,12 +111,32 @@ class Document(Base):
     reuse_instances: Mapped[list["DocumentReuseInstance"]] = relationship(
         back_populates="document", cascade="all, delete-orphan"
     )
+    integration: Mapped["Integration | None"] = relationship(
+        back_populates="document",
+        foreign_keys="Integration.document_id",
+        uselist=False,
+    )
 
 
 # Section kinds — drives the required/template/custom marker in the UI.
 KIND_TEMPLATE_REQUIRED = "template_required"
 KIND_TEMPLATE_OPTIONAL = "template_optional"
 KIND_CUSTOM = "custom"
+
+# Document types.
+DOC_TYPE_HLD = "hld"
+DOC_TYPE_INTEGRATION = "integration"
+
+# Integration types — gRPC is first-class alongside the others.
+INTEGRATION_TYPES = (
+    "GRPC",
+    "KAFKA",
+    "MQ",
+    "SOAP",
+    "REST",
+    "FILE",
+    "BATCH",
+)
 
 
 class DocumentSection(Base):
@@ -258,3 +278,56 @@ class DocumentReuseInstance(Base):
     )
 
     document: Mapped[Document] = relationship(back_populates="reuse_instances")
+
+
+class Integration(Base):
+    """An integration belonging to an architecture increment.
+
+    Holds type-aware integration metadata and an optional pointer to the
+    integration *document* (a ``Document`` with ``type == 'integration'``).
+    ``document_id`` is NULL while the integration is only *declared* — listed
+    as required but not yet authored.
+    """
+
+    __tablename__ = "integrations"
+    __table_args__ = (UniqueConstraint("increment_id", "integration_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    increment_id: Mapped[int] = mapped_column(
+        ForeignKey("architecture_increments.id")
+    )
+    integration_id: Mapped[str] = mapped_column(String(120), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    type: Mapped[str] = mapped_column(String(20))  # GRPC, KAFKA, MQ, SOAP, ...
+    source_application: Mapped[str] = mapped_column(String(200), default="")
+    target_application: Mapped[str] = mapped_column(String(200), default="")
+    required: Mapped[bool] = mapped_column(default=True)
+    status: Mapped[str] = mapped_column(String(40), default="draft")
+    document_id: Mapped[int | None] = mapped_column(
+        ForeignKey("documents.id"), nullable=True
+    )
+    metadata_json: Mapped[str] = mapped_column(Text, default="{}")
+    contract_filename: Mapped[str] = mapped_column(String(200), default="")
+    contract_path: Mapped[str] = mapped_column(String(500), default="")
+    contract_content: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    increment: Mapped[ArchitectureIncrement] = relationship()
+    document: Mapped[Document | None] = relationship(
+        back_populates="integration", foreign_keys=[document_id]
+    )
+
+
+class DocumentIntegrationLink(Base):
+    """A linked reference from an HLD document to an integration."""
+
+    __tablename__ = "document_integration_links"
+    __table_args__ = (UniqueConstraint("document_id", "integration_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(ForeignKey("documents.id"))
+    integration_id: Mapped[int] = mapped_column(ForeignKey("integrations.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

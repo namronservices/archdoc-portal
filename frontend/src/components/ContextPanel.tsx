@@ -6,19 +6,37 @@ import {
   GitFork,
   Layers3,
   Link2,
+  Plug,
   Search,
 } from "lucide-react";
 import { api } from "../api/client";
-import type { HldDocument, ReusableBlock, ValidationItem } from "../types";
+import type {
+  HldDocument,
+  IntegrationType,
+  LinkedIntegration,
+  ReusableBlock,
+  ValidationItem,
+} from "../types";
 import { Badge } from "./ui";
 
-type Tab = "blocks" | "context" | "references" | "validation";
+type Tab = "blocks" | "integrations" | "context" | "references" | "validation";
 
 const TABS: { id: Tab; short: string; full: string }[] = [
   { id: "blocks", short: "Blocks", full: "Reusable Blocks" },
+  { id: "integrations", short: "Integ.", full: "Integration Overview" },
   { id: "context", short: "Context", full: "Architecture Context" },
-  { id: "references", short: "References", full: "Linked References" },
-  { id: "validation", short: "Validation", full: "Validation" },
+  { id: "references", short: "Refs", full: "Linked References" },
+  { id: "validation", short: "Valid.", full: "Validation" },
+];
+
+const INTEGRATION_GROUP_ORDER: { type: IntegrationType; label: string }[] = [
+  { type: "GRPC", label: "gRPC Services" },
+  { type: "KAFKA", label: "Kafka Events" },
+  { type: "MQ", label: "MQ Messages" },
+  { type: "SOAP", label: "Legacy SOAP" },
+  { type: "REST", label: "REST APIs" },
+  { type: "FILE", label: "File Transfers" },
+  { type: "BATCH", label: "Batch Jobs" },
 ];
 
 const SEVERITY_STYLE: Record<string, string> = {
@@ -261,6 +279,25 @@ export default function ContextPanel({
         </div>
       )}
 
+      {tab === "integrations" && (
+        <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-3">
+          <p className="mb-3 flex items-center gap-1.5 text-[11px] text-slate-400">
+            <Plug size={13} />
+            Integrations linked into this HLD, grouped by type.
+          </p>
+          {document.linked_integrations.length === 0 ? (
+            <p className="text-xs text-slate-400">
+              No integrations linked yet. Link them from the increment's
+              Integration Docs screen.
+            </p>
+          ) : (
+            <IntegrationGroups
+              integrations={document.linked_integrations}
+            />
+          )}
+        </div>
+      )}
+
       {tab === "context" && (
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-3">
           <p className="mb-3 flex items-center gap-1.5 text-[11px] text-slate-400">
@@ -340,6 +377,7 @@ export default function ContextPanel({
         </div>
       )}
 
+      {/* validation tab follows */}
       {tab === "validation" && (
         <section className="flex min-h-0 flex-1 flex-col p-3">
           <div className="mb-2 flex items-center justify-between">
@@ -376,5 +414,62 @@ export default function ContextPanel({
         </section>
       )}
     </aside>
+  );
+}
+
+function IntegrationGroups({
+  integrations,
+}: {
+  integrations: LinkedIntegration[];
+}) {
+  const byType = new Map<IntegrationType, LinkedIntegration[]>();
+  for (const i of integrations) {
+    const list = byType.get(i.type) ?? [];
+    list.push(i);
+    byType.set(i.type, list);
+  }
+  return (
+    <>
+      {INTEGRATION_GROUP_ORDER.map(({ type, label }) => {
+        const list = byType.get(type);
+        if (!list || list.length === 0) return null;
+        return (
+          <div key={type} className="mb-3">
+            <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+              {label}
+            </div>
+            <div className="space-y-1">
+              {list.map((i) => (
+                <a
+                  key={i.id}
+                  href={
+                    i.document_id !== null
+                      ? `/integration-doc/${i.document_id}`
+                      : "#"
+                  }
+                  className="block rounded-lg border border-slate-200 bg-white p-2.5 shadow-card hover:border-brand"
+                >
+                  <div className="text-xs font-semibold text-slate-800">
+                    {i.name}
+                  </div>
+                  <div className="mt-0.5 text-[10px] text-slate-400">
+                    {i.source_application || "—"} → {i.target_application || "—"}
+                  </div>
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <Badge tone="indigo">{i.type_label}</Badge>
+                    <Badge tone={i.status === "approved" ? "emerald" : "slate"}>
+                      {i.status}
+                    </Badge>
+                    {i.document_id === null && (
+                      <Badge tone="amber">no doc</Badge>
+                    )}
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </>
   );
 }

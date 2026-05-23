@@ -1,0 +1,58 @@
+# Legacy SOAP integration document template.
+title: Legacy SOAP Integration
+
+chapters:
+  - title: Business Purpose
+    kind: template_required
+    content: |
+      Describe why this SOAP integration exists and the capability it supports.
+
+  - title: Source and Target Applications
+    kind: template_required
+    content: |
+      Identify the calling and serving applications and their ownership.
+
+  - title: WSDL and Service Overview
+    kind: template_required
+    content: |
+      Reference the attached WSDL file and summarize the service.
+
+  - title: SOAP Action and Endpoint
+    kind: template_required
+    content: |
+      Document the SOAP action and the service endpoint URL.
+
+  - title: Request/Response XML Schema
+    kind: template_required
+    content: |
+      Describe the request and response XML schemas.
+
+  - title: Authentication
+    kind: template_required
+    content: |
+      Describe authentication for this SOAP service.
+
+  - title: Timeout and Retry
+    kind: template_required
+    content: |
+      Describe timeout and retry behavior.
+
+  - title: SOAP Fault Handling
+    kind: template_required
+    content: |
+      Describe how SOAP faults are detected and handled.
+
+  - title: Legacy Constraints
+    kind: template_required
+    content: |
+      Document legacy constraints that affect this integration.
+
+  - title: Migration and Transition Notes
+    kind: template_optional
+    content: |
+      Describe migration or transition plans away from this legacy interface.
+
+  - title: Risks and Decisions
+    kind: template_optional
+    content: |
+      Capture key decisions, open risks, and mitigations.

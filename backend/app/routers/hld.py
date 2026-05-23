@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import (
+    DOC_TYPE_HLD,
+    DOC_TYPE_INTEGRATION,
     KIND_CUSTOM,
     ArchitectureIncrement,
     Document,
@@ -30,9 +32,16 @@ router = APIRouter(tags=["hld"])
 
 
 def _get_hld(document_id: int, db: Session) -> Document:
+    """Fetch an editable document — an HLD or an integration document.
+
+    Both share the section/chapter/structure editing machinery.
+    """
     document = db.get(Document, document_id)
-    if document is None or document.type != "hld":
-        raise HTTPException(404, "HLD document not found")
+    if document is None or document.type not in (
+        DOC_TYPE_HLD,
+        DOC_TYPE_INTEGRATION,
+    ):
+        raise HTTPException(404, "Document not found")
     return document
 
 
@@ -78,6 +87,17 @@ def create_hld(
 @router.get("/api/hlds/{document_id}", response_model=DocumentOut)
 def get_hld(document_id: int, db: Session = Depends(get_db)):
     return build_document_out(_get_hld(document_id, db))
+
+
+@router.get("/api/increments/{increment_id}/hld", response_model=DocumentOut)
+def get_increment_hld(increment_id: int, db: Session = Depends(get_db)):
+    """Fetch the increment's HLD, if one exists."""
+    document = (
+        db.query(Document).filter_by(increment_id=increment_id, type=DOC_TYPE_HLD).first()
+    )
+    if document is None:
+        raise HTTPException(404, "HLD not found for this increment")
+    return build_document_out(document)
 
 
 @router.put(

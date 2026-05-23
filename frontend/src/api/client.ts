@@ -2,10 +2,16 @@ import type {
   ApplicationGroup,
   BlockCompare,
   CommitInfo,
+  Contract,
   Diagram,
   ExportJob,
   HldDocument,
   Increment,
+  Integration,
+  IntegrationListItem,
+  IntegrationType,
+  IntegrationValidationResponse,
+  LinkedIntegration,
   Repository,
   ReusableBlock,
   ReuseInstance,
@@ -57,6 +63,12 @@ export const api = {
     ),
 
   // Increments
+  listIncrements: (applicationGroupId: number) =>
+    request<Increment[]>(
+      `/api/increments?application_group_id=${applicationGroupId}`,
+    ),
+  getIncrement: (incrementId: number) =>
+    request<Increment>(`/api/increments/${incrementId}`),
   createIncrement: (applicationGroupId: number, name: string) =>
     request<Increment>("/api/increments", {
       method: "POST",
@@ -71,6 +83,8 @@ export const api = {
     }),
   getHld: (documentId: number) =>
     request<HldDocument>(`/api/hlds/${documentId}`),
+  getIncrementHld: (incrementId: number) =>
+    request<HldDocument>(`/api/increments/${incrementId}/hld`),
   updateSection: (
     documentId: number,
     sectionId: number,
@@ -183,4 +197,87 @@ export const api = {
     request<HldDocument>(`/api/hlds/${documentId}/reuse/${instanceId}`, {
       method: "DELETE",
     }),
+
+  // Integrations
+  getDocument: (documentId: number) =>
+    request<HldDocument>(`/api/hlds/${documentId}`),
+  listIntegrations: (incrementId: number) =>
+    request<IntegrationListItem[]>(
+      `/api/increments/${incrementId}/integration-docs`,
+    ),
+  createIntegration: (
+    incrementId: number,
+    data: {
+      type: IntegrationType;
+      name: string;
+      integration_id?: string;
+      source_application?: string;
+      target_application?: string;
+      required?: boolean;
+      create_document?: boolean;
+    },
+  ) =>
+    request<Integration>(
+      `/api/increments/${incrementId}/integration-docs`,
+      { method: "POST", body: body(data) },
+    ),
+  createMissingIntegrationDocs: (incrementId: number) =>
+    request<{ created: IntegrationListItem[] }>(
+      `/api/increments/${incrementId}/integration-docs/create-missing`,
+      { method: "POST" },
+    ),
+  getIntegration: (integrationId: number) =>
+    request<Integration>(`/api/integrations/${integrationId}`),
+  updateIntegration: (
+    integrationId: number,
+    data: {
+      name?: string;
+      source_application?: string;
+      target_application?: string;
+      required?: boolean;
+      status?: string;
+      metadata?: Record<string, unknown>;
+    },
+  ) =>
+    request<Integration>(`/api/integrations/${integrationId}`, {
+      method: "PUT",
+      body: body(data),
+    }),
+  createIntegrationDocument: (integrationId: number) =>
+    request<Integration>(`/api/integrations/${integrationId}/document`, {
+      method: "POST",
+    }),
+  getContract: (integrationId: number) =>
+    request<Contract>(`/api/integrations/${integrationId}/contract`),
+  setContract: (
+    integrationId: number,
+    data: { filename: string; content: string },
+  ) =>
+    request<Contract>(`/api/integrations/${integrationId}/contract`, {
+      method: "POST",
+      body: body(data),
+    }),
+  validateIntegration: (integrationId: number) =>
+    request<IntegrationValidationResponse>(
+      `/api/integrations/${integrationId}/validate`,
+      { method: "POST" },
+    ),
+  getIntegrationValidation: (integrationId: number) =>
+    request<IntegrationValidationResponse>(
+      `/api/integrations/${integrationId}/validation`,
+    ),
+  linkIntegrationToHld: (documentId: number, integrationId: number) =>
+    request<HldDocument>(
+      `/api/hlds/${documentId}/linked-references/integrations/${integrationId}`,
+      { method: "POST" },
+    ),
+  unlinkIntegrationFromHld: (documentId: number, integrationId: number) =>
+    request<HldDocument>(
+      `/api/hlds/${documentId}/linked-references/integrations/${integrationId}`,
+      { method: "DELETE" },
+    ),
+  listLinkedIntegrations: (documentId: number) =>
+    request<LinkedIntegration[]>(
+      `/api/hlds/${documentId}/linked-integrations`,
+    ),
 };

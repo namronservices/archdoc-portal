@@ -1,0 +1,83 @@
+# gRPC integration document template.
+# kind: template_required | template_optional
+title: gRPC Integration
+
+chapters:
+  - title: Business Purpose
+    kind: template_required
+    content: |
+      Describe why this gRPC integration exists and the business capability it
+      supports.
+
+  - title: Source and Target Applications
+    kind: template_required
+    content: |
+      Identify the calling (source) and serving (target) applications and their
+      ownership.
+
+  - title: gRPC Service Overview
+    kind: template_required
+    content: |
+      Summarize the gRPC service, its responsibilities, and where it runs.
+
+  - title: Proto Contract
+    kind: template_required
+    content: |
+      Reference the attached `.proto` contract, its package, and how it is
+      versioned in Git.
+
+  - title: RPC Methods
+    kind: template_required
+    content: |
+      List each RPC method, its purpose, and its semantics.
+
+  - title: Request/Response Messages
+    kind: template_required
+    content: |
+      Describe the key request and response messages and their important
+      fields.
+
+  - title: Streaming Mode
+    kind: template_required
+    content: |
+      State the streaming mode (unary, server, client, or bidirectional) and why.
+
+  - title: Deadline, Timeout, and Retry Policy
+    kind: template_required
+    content: |
+      Define deadlines/timeouts and the retry policy for failed calls.
+
+  - title: Idempotency and Duplicate Handling
+    kind: template_required
+    content: |
+      Describe idempotency guarantees and how duplicate requests are handled.
+
+  - title: "Security: mTLS, AuthN/AuthZ"
+    kind: template_required
+    content: |
+      Describe mutual TLS, authentication, and authorization for this service.
+
+  - title: Error Handling and gRPC Status Codes
+    kind: template_required
+    content: |
+      Describe how errors are surfaced and which gRPC status codes are used.
+
+  - title: "Observability: Logs, Metrics, Traces"
+    kind: template_optional
+    content: |
+      Describe logging, metrics, and distributed tracing for this integration.
+
+  - title: Compatibility and Versioning
+    kind: template_required
+    content: |
+      Describe proto compatibility rules and how breaking changes are managed.
+
+  - title: Operational Considerations
+    kind: template_optional
+    content: |
+      Describe deployment, scaling, and operational concerns.
+
+  - title: Risks and Decisions
+    kind: template_optional
+    content: |
+      Capture key decisions, open risks, and mitigations.

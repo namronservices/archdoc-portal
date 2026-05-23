@@ -1,0 +1,48 @@
+# File transfer integration document template.
+title: File Transfer Integration
+
+chapters:
+  - title: Business Purpose
+    kind: template_required
+    content: |
+      Describe why this file transfer integration exists.
+
+  - title: Source and Target Applications
+    kind: template_required
+    content: |
+      Identify the sending and receiving applications and their ownership.
+
+  - title: File Layout and Format
+    kind: template_required
+    content: |
+      Describe the file format, layout, and record structure.
+
+  - title: Transfer Protocol
+    kind: template_required
+    content: |
+      Describe the transfer protocol and connection details.
+
+  - title: Schedule
+    kind: template_required
+    content: |
+      Describe when and how often files are transferred.
+
+  - title: Security and Encryption
+    kind: template_required
+    content: |
+      Describe encryption in transit and at rest, and access controls.
+
+  - title: Error Handling and Recovery
+    kind: template_required
+    content: |
+      Describe handling of failed or partial transfers and recovery.
+
+  - title: Observability
+    kind: template_optional
+    content: |
+      Describe monitoring and alerting for transfers.
+
+  - title: Risks and Decisions
+    kind: template_optional
+    content: |
+      Capture key decisions, open risks, and mitigations.

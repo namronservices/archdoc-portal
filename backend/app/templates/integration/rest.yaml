@@ -1,0 +1,53 @@
+# REST integration document template.
+title: REST Integration
+
+chapters:
+  - title: Business Purpose
+    kind: template_required
+    content: |
+      Describe why this REST integration exists and the capability it supports.
+
+  - title: Source and Target Applications
+    kind: template_required
+    content: |
+      Identify the calling and serving applications and their ownership.
+
+  - title: API Overview
+    kind: template_required
+    content: |
+      Summarize the API, its resources, and its base path.
+
+  - title: OpenAPI Contract
+    kind: template_required
+    content: |
+      Reference the attached OpenAPI contract and how it is versioned.
+
+  - title: Endpoints and Methods
+    kind: template_required
+    content: |
+      List the endpoints, HTTP methods, and their purpose.
+
+  - title: Authentication and Authorization
+    kind: template_required
+    content: |
+      Describe authentication and authorization for the API.
+
+  - title: Error Handling
+    kind: template_required
+    content: |
+      Describe error responses and status code conventions.
+
+  - title: Observability
+    kind: template_optional
+    content: |
+      Describe logging, metrics, and tracing.
+
+  - title: Versioning
+    kind: template_required
+    content: |
+      Describe the API versioning strategy and compatibility rules.
+
+  - title: Risks and Decisions
+    kind: template_optional
+    content: |
+      Capture key decisions, open risks, and mitigations.

@@ -1,0 +1,58 @@
+# MQ integration document template.
+title: MQ Integration
+
+chapters:
+  - title: Business Purpose
+    kind: template_required
+    content: |
+      Describe why this MQ integration exists and the capability it supports.
+
+  - title: Source and Target Applications
+    kind: template_required
+    content: |
+      Identify the sending and receiving applications and their ownership.
+
+  - title: Queue Overview
+    kind: template_required
+    content: |
+      Describe the queue, its name, and the messages it carries.
+
+  - title: Message Schema
+    kind: template_required
+    content: |
+      Reference the message schema and queue metadata.
+
+  - title: Delivery Guarantee
+    kind: template_required
+    content: |
+      State the delivery guarantee (at-most-once, at-least-once, exactly-once).
+
+  - title: Retry Behavior
+    kind: template_required
+    content: |
+      Describe retry behavior for failed message processing.
+
+  - title: Dead-Letter Queue
+    kind: template_required
+    content: |
+      Describe dead-letter queue handling.
+
+  - title: Correlation and Ordering
+    kind: template_required
+    content: |
+      Describe correlation IDs and any message ordering requirements.
+
+  - title: Transactional Behavior
+    kind: template_required
+    content: |
+      Describe transactional behavior and message acknowledgement.
+
+  - title: Observability
+    kind: template_optional
+    content: |
+      Describe logging, metrics, and queue-depth monitoring.
+
+  - title: Risks and Decisions
+    kind: template_optional
+    content: |
+      Capture key decisions, open risks, and mitigations.

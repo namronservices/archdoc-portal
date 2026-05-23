@@ -9,6 +9,7 @@ from app.routers import (
     documents,
     hld,
     increments,
+    integrations,
     repositories,
     reusable_blocks,
     reuse,
@@ -27,6 +28,7 @@ app.add_middleware(
 app.include_router(repositories.router)
 app.include_router(increments.router)
 app.include_router(hld.router)
+app.include_router(integrations.router)
 app.include_router(diagrams.router)
 app.include_router(documents.router)
 app.include_router(reusable_blocks.router)

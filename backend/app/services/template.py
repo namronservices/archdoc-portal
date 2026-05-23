@@ -1,4 +1,8 @@
-"""HLD template generation — turns ``hld_template.yaml`` into document sections."""
+"""Document template generation — turns template YAML into document sections.
+
+Templates live under ``app/templates``: the HLD template at ``hld_template.yaml``
+and per-type integration templates under ``integration/<name>.yaml``.
+"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -8,25 +12,36 @@ from sqlalchemy.orm import Session
 
 from app.models import Document, DocumentSection
 
-TEMPLATE_PATH = Path(__file__).resolve().parent.parent / "templates" / "hld_template.yaml"
+TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
+HLD_TEMPLATE_PATH = TEMPLATES_DIR / "hld_template.yaml"
 
 
-def load_template() -> dict:
-    """Load the default HLD template definition."""
-    with TEMPLATE_PATH.open(encoding="utf-8") as fh:
+def load_template(name: str = "hld") -> dict:
+    """Load a template definition by name.
+
+    ``name='hld'`` loads the HLD template; any other name loads
+    ``integration/<name>.yaml``.
+    """
+    if name == "hld":
+        path = HLD_TEMPLATE_PATH
+    else:
+        path = TEMPLATES_DIR / "integration" / f"{name}.yaml"
+    with path.open(encoding="utf-8") as fh:
         return yaml.safe_load(fh)
 
 
-def template_title() -> str:
-    return load_template().get("title", "High-Level Design")
+def template_title(name: str = "hld") -> str:
+    return load_template(name).get("title", "Document")
 
 
-def apply_hld_template(db: Session, document: Document) -> list[DocumentSection]:
-    """Create the template's chapters and sub-chapters for ``document``.
+def apply_template(
+    db: Session, document: Document, name: str = "hld"
+) -> list[DocumentSection]:
+    """Create the named template's chapters and sub-chapters for ``document``.
 
     Sections are flushed (not committed) so callers can extend the transaction.
     """
-    template = load_template()
+    template = load_template(name)
     sections: list[DocumentSection] = []
 
     for ch_idx, chapter in enumerate(template.get("chapters", [])):
@@ -59,3 +74,8 @@ def apply_hld_template(db: Session, document: Document) -> list[DocumentSection]
             sections.append(sub_section)
 
     return sections
+
+
+def apply_hld_template(db: Session, document: Document) -> list[DocumentSection]:
+    """Backwards-compatible wrapper: apply the default HLD template."""
+    return apply_template(db, document, "hld")

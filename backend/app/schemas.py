@@ -184,6 +184,8 @@ class DocumentOut(ORMModel):
     sections: list[SectionOut]
     diagrams: list[DiagramOut]
     reuse_instances: list[ReuseInstanceOut]
+    linked_integrations: list[LinkedIntegrationOut] = []
+    integration_ref: LinkedIntegrationOut | None = None
     breadcrumb: dict[str, str]
 
 
@@ -224,3 +226,103 @@ class ValidationItem(BaseModel):
 class ValidationOut(BaseModel):
     document_id: int
     results: list[ValidationItem]
+
+
+# --- Integrations -------------------------------------------------------
+class IntegrationCreate(BaseModel):
+    type: str = Field(max_length=20)
+    name: str = Field(min_length=1, max_length=200)
+    integration_id: str | None = Field(default=None, max_length=120)
+    source_application: str = Field(default="", max_length=200)
+    target_application: str = Field(default="", max_length=200)
+    required: bool = True
+    create_document: bool = False
+
+
+class IntegrationUpdate(BaseModel):
+    name: str | None = Field(default=None, max_length=200)
+    source_application: str | None = Field(default=None, max_length=200)
+    target_application: str | None = Field(default=None, max_length=200)
+    required: bool | None = None
+    status: str | None = Field(default=None, max_length=40)
+    metadata: dict | None = None
+
+
+class IntegrationListItem(BaseModel):
+    id: int
+    increment_id: int
+    integration_id: str
+    name: str
+    type: str
+    type_label: str
+    source_application: str
+    target_application: str
+    required: bool
+    status: str
+    document_id: int | None = None
+    document_filename: str | None = None
+
+
+class MetadataFieldSpec(BaseModel):
+    key: str
+    label: str
+    kind: str
+    options: list[str] | None = None
+
+
+class LinkedHldOut(BaseModel):
+    document_id: int
+    title: str
+
+
+class IntegrationOut(BaseModel):
+    id: int
+    increment_id: int
+    integration_id: str
+    name: str
+    type: str
+    type_label: str
+    source_application: str
+    target_application: str
+    required: bool
+    status: str
+    document_id: int | None = None
+    metadata: dict
+    metadata_schema: list[MetadataFieldSpec]
+    contract_filename: str
+    contract_path: str
+    has_contract: bool
+    contract_format: str
+    linked_hlds: list[LinkedHldOut]
+
+
+class ContractIn(BaseModel):
+    filename: str = Field(min_length=1, max_length=200)
+    content: str = ""
+
+
+class ContractOut(BaseModel):
+    filename: str
+    path: str
+    content: str
+
+
+class IntegrationCreateMissingOut(BaseModel):
+    created: list[IntegrationListItem]
+
+
+class IntegrationValidationOut(BaseModel):
+    integration_id: int
+    results: list[ValidationItem]
+
+
+class LinkedIntegrationOut(BaseModel):
+    id: int
+    integration_id: str
+    name: str
+    type: str
+    type_label: str
+    source_application: str
+    target_application: str
+    status: str
+    document_id: int | None = None

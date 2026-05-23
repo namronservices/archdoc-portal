@@ -55,3 +55,19 @@ def get_increment(increment_id: int, db: Session = Depends(get_db)):
     if increment is None:
         raise HTTPException(404, "Increment not found")
     return increment
+
+
+# Listing endpoint lives here so HomePage can pick an existing increment.
+@router.get("", response_model=list[IncrementOut])
+def list_increments(
+    application_group_id: int, db: Session = Depends(get_db)
+):
+    group = db.get(ApplicationGroup, application_group_id)
+    if group is None:
+        raise HTTPException(404, "Application group not found")
+    return (
+        db.query(ArchitectureIncrement)
+        .filter_by(application_group_id=application_group_id)
+        .order_by(ArchitectureIncrement.created_at)
+        .all()
+    )

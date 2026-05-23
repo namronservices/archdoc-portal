@@ -1,41 +1,58 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/client";
-import type { CommitInfo, HldDocument, ValidationItem } from "../types";
+import type { CommitInfo, HldDocument, Integration } from "../types";
 import AppHeader from "../components/AppHeader";
 import DocumentHeader from "../components/DocumentHeader";
 import StructurePanel from "../components/StructurePanel";
 import HldEditor from "../components/HldEditor";
-import ContextPanel from "../components/ContextPanel";
+import IntegrationPanel from "../components/IntegrationPanel";
 import EditorFooter from "../components/EditorFooter";
 
-export default function HldEditorPage() {
+export default function IntegrationDocPage() {
   const { documentId } = useParams();
   const navigate = useNavigate();
   const docId = Number(documentId);
 
   const [doc, setDoc] = useState<HldDocument | null>(null);
+  const [integration, setIntegration] = useState<Integration | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [commit, setCommit] = useState<CommitInfo | null>(null);
-  const [validation, setValidation] = useState<ValidationItem[]>([]);
   const [status, setStatus] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
-  const reload = useCallback(async () => {
-    const data = await api.getHld(docId);
+  const reloadDocument = useCallback(async () => {
+    const data = await api.getDocument(docId);
     setDoc(data);
     setSelectedId((prev) => prev ?? data.sections[0]?.id ?? null);
     return data;
   }, [docId]);
 
-  useEffect(() => {
-    reload().catch((e) => setError((e as Error).message));
-  }, [reload]);
-
-  const runValidation = useCallback(async () => {
-    const res = await api.validateDocument(docId);
-    setValidation(res.results);
+  const reloadIntegration = useCallback(async (): Promise<Integration> => {
+    const data = await api.getDocument(docId);
+    setDoc(data);
+    if (!data.integration_ref) {
+      throw new Error("Document is not an integration document");
+    }
+    const fresh = await api.getIntegration(data.integration_ref.id);
+    setIntegration(fresh);
+    return fresh;
   }, [docId]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await reloadDocument();
+        if (data.integration_ref) {
+          setIntegration(await api.getIntegration(data.integration_ref.id));
+        } else {
+          setError("This document is not an integration document.");
+        }
+      } catch (e) {
+        setError((e as Error).message);
+      }
+    })();
+  }, [reloadDocument]);
 
   async function handleSave() {
     setStatus("Saving to Git…");
@@ -43,8 +60,7 @@ export default function HldEditorPage() {
     try {
       const info = await api.saveDocument(docId);
       setCommit(info);
-      await reload();
-      await runValidation();
+      await reloadDocument();
       setStatus(`Saved · commit ${info.short_hash}`);
     } catch (e) {
       setError((e as Error).message);
@@ -73,8 +89,12 @@ export default function HldEditorPage() {
   if (error && !doc) {
     return <div className="p-6 text-sm text-rose-700">{error}</div>;
   }
-  if (!doc) {
-    return <div className="p-6 text-sm text-slate-500">Loading HLD…</div>;
+  if (!doc || !integration) {
+    return (
+      <div className="p-6 text-sm text-slate-500">
+        Loading integration document…
+      </div>
+    );
   }
 
   const selected =
@@ -95,9 +115,9 @@ export default function HldEditorPage() {
         <StructurePanel
           document={doc}
           selectedId={selected?.id ?? null}
-          validation={validation}
+          validation={[]}
           onSelect={setSelectedId}
-          onReload={reload}
+          onReload={reloadDocument}
         />
         <main className="scroll-thin min-w-0 flex-1 overflow-y-auto">
           {selected ? (
@@ -105,7 +125,7 @@ export default function HldEditorPage() {
               key={selected.id}
               document={doc}
               section={selected}
-              onReload={reload}
+              onReload={reloadDocument}
             />
           ) : (
             <div className="p-8 text-sm text-slate-500">
@@ -113,13 +133,12 @@ export default function HldEditorPage() {
             </div>
           )}
         </main>
-        <ContextPanel
-          document={doc}
-          selectedSectionId={selected?.id ?? null}
-          validation={validation}
-          onValidate={runValidation}
-          onReload={reload}
-        />
+        <aside className="flex w-96 flex-col border-l border-slate-200 bg-panel">
+          <IntegrationPanel
+            integration={integration}
+            onReload={reloadIntegration}
+          />
+        </aside>
       </div>
       <EditorFooter
         status={status}

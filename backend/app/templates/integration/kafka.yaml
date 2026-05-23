@@ -1,0 +1,69 @@
+# Kafka integration document template.
+title: Kafka Integration
+
+chapters:
+  - title: Business Purpose
+    kind: template_required
+    content: |
+      Describe why this Kafka event integration exists and the capability it
+      supports.
+
+  - title: Source and Target Applications
+    kind: template_required
+    content: |
+      Identify the producing and consuming applications and their ownership.
+
+  - title: Topic and Event Overview
+    kind: template_required
+    content: |
+      Describe the topic, the event(s) published, and their meaning.
+
+  - title: Schema and Schema Format
+    kind: template_required
+    content: |
+      Reference the schema file and its format (Avro, JSON Schema, Protobuf).
+
+  - title: Producer
+    kind: template_required
+    content: |
+      Describe the producer, publish triggers, and delivery semantics.
+
+  - title: Consumer and Consumer Group
+    kind: template_required
+    content: |
+      Describe the consumer(s), the consumer group, and processing behavior.
+
+  - title: Ordering and Partitioning
+    kind: template_required
+    content: |
+      Describe the ordering key and partitioning strategy.
+
+  - title: Retention and Replay
+    kind: template_required
+    content: |
+      Describe topic retention and whether replay is supported.
+
+  - title: Dead-Letter Queue Behavior
+    kind: template_required
+    content: |
+      Describe DLQ handling for poison messages and processing failures.
+
+  - title: Idempotent Processing
+    kind: template_required
+    content: |
+      Describe how consumers handle duplicate delivery idempotently.
+
+  - title: Observability
+    kind: template_optional
+    content: |
+      Describe logging, metrics, lag monitoring, and tracing.
+
+  - title: Compatibility and Versioning
+    kind: template_required
+    content: |
+      Describe schema compatibility rules and event versioning.
+
+  - title: Risks and Decisions
+    kind: template_optional
+    content: |
+      Capture key decisions, open risks, and mitigations.

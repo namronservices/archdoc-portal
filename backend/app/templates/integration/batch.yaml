@@ -1,0 +1,48 @@
+# Batch integration document template.
+title: Batch Integration
+
+chapters:
+  - title: Business Purpose
+    kind: template_required
+    content: |
+      Describe why this batch integration exists.
+
+  - title: Source and Target Applications
+    kind: template_required
+    content: |
+      Identify the applications involved and their ownership.
+
+  - title: Job Overview
+    kind: template_required
+    content: |
+      Describe the batch job and what it processes.
+
+  - title: Schedule
+    kind: template_required
+    content: |
+      Describe the job schedule and triggers.
+
+  - title: Dependencies
+    kind: template_required
+    content: |
+      Describe upstream and downstream job dependencies.
+
+  - title: SLA and Restart Policy
+    kind: template_required
+    content: |
+      Describe the SLA and the restart/recovery policy.
+
+  - title: Error Handling
+    kind: template_required
+    content: |
+      Describe handling of job failures.
+
+  - title: Observability
+    kind: template_optional
+    content: |
+      Describe monitoring and alerting for the job.
+
+  - title: Risks and Decisions
+    kind: template_optional
+    content: |
+      Capture key decisions, open risks, and mitigations.

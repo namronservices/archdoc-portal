@@ -92,6 +92,7 @@ export default function HomePage() {
   const [repo, setRepo] = useState<Repository | null>(null);
   const [groups, setGroups] = useState<ApplicationGroup[]>([]);
   const [group, setGroup] = useState<ApplicationGroup | null>(null);
+  const [increments, setIncrements] = useState<Increment[]>([]);
   const [increment, setIncrement] = useState<Increment | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -103,6 +104,7 @@ export default function HomePage() {
   useEffect(() => {
     setGroups([]);
     setGroup(null);
+    setIncrements([]);
     setIncrement(null);
     if (repo) {
       api
@@ -111,6 +113,17 @@ export default function HomePage() {
         .catch((e) => setError(e.message));
     }
   }, [repo]);
+
+  useEffect(() => {
+    setIncrements([]);
+    setIncrement(null);
+    if (group) {
+      api
+        .listIncrements(group.id)
+        .then(setIncrements)
+        .catch((e) => setError(e.message));
+    }
+  }, [group]);
 
   const guard = async (fn: () => Promise<void>) => {
     setError(null);
@@ -222,19 +235,31 @@ export default function HomePage() {
           active={!!group && !increment}
           done={!!increment}
         >
-          {increment ? (
-            <p className="text-sm text-slate-600">{increment.name}</p>
-          ) : (
+          <div className="space-y-2">
+            {increments.map((i) => (
+              <button
+                key={i.id}
+                className={`block w-full rounded border px-3 py-1.5 text-left text-sm ${
+                  increment?.id === i.id
+                    ? "border-brand bg-brand-soft"
+                    : "border-slate-200 hover:bg-slate-50"
+                }`}
+                onClick={() => setIncrement(i)}
+              >
+                {i.name}
+              </button>
+            ))}
             <CreateRow
               placeholder="New increment name (e.g. MVP2)"
               onCreate={(name) =>
                 guard(async () => {
                   const inc = await api.createIncrement(group!.id, name);
+                  setIncrements((prev) => [...prev, inc]);
                   setIncrement(inc);
                 })
               }
             />
-          )}
+          </div>
         </StepCard>
 
         <StepCard
@@ -249,6 +274,24 @@ export default function HomePage() {
             onClick={createHld}
           >
             Create HLD from template
+          </button>
+        </StepCard>
+
+        <StepCard
+          step={5}
+          title="Integration Documents"
+          active={!!increment}
+          done={false}
+        >
+          <button
+            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            disabled={!increment}
+            onClick={() =>
+              increment &&
+              navigate(`/increment/${increment.id}/integrations`)
+            }
+          >
+            Open Integration Docs
           </button>
         </StepCard>
       </div>

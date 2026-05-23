@@ -102,7 +102,89 @@ export interface HldDocument {
   sections: Section[];
   diagrams: Diagram[];
   reuse_instances: ReuseInstance[];
+  linked_integrations: LinkedIntegration[];
+  integration_ref: LinkedIntegration | null;
   breadcrumb: Record<string, string>;
+}
+
+export type IntegrationType =
+  | "GRPC"
+  | "KAFKA"
+  | "MQ"
+  | "SOAP"
+  | "REST"
+  | "FILE"
+  | "BATCH";
+
+export interface MetadataFieldSpec {
+  key: string;
+  label: string;
+  kind: "text" | "select" | "bool" | "list";
+  options?: string[];
+}
+
+export interface LinkedHld {
+  document_id: number;
+  title: string;
+}
+
+export interface IntegrationListItem {
+  id: number;
+  increment_id: number;
+  integration_id: string;
+  name: string;
+  type: IntegrationType;
+  type_label: string;
+  source_application: string;
+  target_application: string;
+  required: boolean;
+  status: string;
+  document_id: number | null;
+  document_filename: string | null;
+}
+
+export interface Integration {
+  id: number;
+  increment_id: number;
+  integration_id: string;
+  name: string;
+  type: IntegrationType;
+  type_label: string;
+  source_application: string;
+  target_application: string;
+  required: boolean;
+  status: string;
+  document_id: number | null;
+  metadata: Record<string, unknown>;
+  metadata_schema: MetadataFieldSpec[];
+  contract_filename: string;
+  contract_path: string;
+  has_contract: boolean;
+  contract_format: string;
+  linked_hlds: LinkedHld[];
+}
+
+export interface LinkedIntegration {
+  id: number;
+  integration_id: string;
+  name: string;
+  type: IntegrationType;
+  type_label: string;
+  source_application: string;
+  target_application: string;
+  status: string;
+  document_id: number | null;
+}
+
+export interface Contract {
+  filename: string;
+  path: string;
+  content: string;
+}
+
+export interface IntegrationValidationResponse {
+  integration_id: number;
+  results: ValidationItem[];
 }
 
 export interface CommitInfo {

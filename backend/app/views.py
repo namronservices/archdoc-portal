@@ -3,23 +3,119 @@ from __future__ import annotations
 
 import json
 
-from sqlalchemy.orm import object_session
+from sqlalchemy.orm import Session, object_session
 
 from app.models import (
     REUSE_FORKED,
     REUSE_SNAPSHOT,
     Document,
+    DocumentIntegrationLink,
     DocumentReuseInstance,
+    Integration,
     ReusableBlock,
 )
 from app.schemas import (
     DiagramOut,
     DocumentOut,
+    IntegrationListItem,
+    IntegrationOut,
+    LinkedHldOut,
+    LinkedIntegrationOut,
+    MetadataFieldSpec,
     ReusableBlockOut,
     ReuseInstanceOut,
     SectionOut,
 )
+from app.services import integration_types
 from app.services.numbering import ordered_children, ordered_roots
+
+
+def _integration_metadata(integration: Integration) -> dict:
+    try:
+        data = json.loads(integration.metadata_json or "{}")
+    except (ValueError, TypeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _type_label(integration_type: str) -> str:
+    return integration_types.INTEGRATION_TYPE_DEFS.get(
+        integration_type, {}
+    ).get("label", integration_type)
+
+
+def integration_list_item(integration: Integration) -> IntegrationListItem:
+    """Row schema for the increment integration-docs table."""
+    return IntegrationListItem(
+        id=integration.id,
+        increment_id=integration.increment_id,
+        integration_id=integration.integration_id,
+        name=integration.name,
+        type=integration.type,
+        type_label=_type_label(integration.type),
+        source_application=integration.source_application,
+        target_application=integration.target_application,
+        required=integration.required,
+        status=integration.status,
+        document_id=integration.document_id,
+        document_filename=(
+            "integration.md" if integration.document_id is not None else None
+        ),
+    )
+
+
+def linked_integration_out(integration: Integration) -> LinkedIntegrationOut:
+    return LinkedIntegrationOut(
+        id=integration.id,
+        integration_id=integration.integration_id,
+        name=integration.name,
+        type=integration.type,
+        type_label=_type_label(integration.type),
+        source_application=integration.source_application,
+        target_application=integration.target_application,
+        status=integration.status,
+        document_id=integration.document_id,
+    )
+
+
+def integration_out(integration: Integration, db: Session) -> IntegrationOut:
+    """Full integration detail incl. metadata schema and linked HLDs."""
+    type_def = integration_types.INTEGRATION_TYPE_DEFS.get(integration.type, {})
+    links = (
+        db.query(DocumentIntegrationLink)
+        .filter_by(integration_id=integration.id)
+        .all()
+    )
+    linked_hlds: list[LinkedHldOut] = []
+    for link in links:
+        doc = db.get(Document, link.document_id)
+        if doc is not None:
+            linked_hlds.append(
+                LinkedHldOut(document_id=doc.id, title=doc.title)
+            )
+    return IntegrationOut(
+        id=integration.id,
+        increment_id=integration.increment_id,
+        integration_id=integration.integration_id,
+        name=integration.name,
+        type=integration.type,
+        type_label=type_def.get("label", integration.type),
+        source_application=integration.source_application,
+        target_application=integration.target_application,
+        required=integration.required,
+        status=integration.status,
+        document_id=integration.document_id,
+        metadata=_integration_metadata(integration),
+        metadata_schema=[
+            MetadataFieldSpec(**f)
+            for f in integration_types.metadata_schema(integration.type)
+        ],
+        contract_filename=integration.contract_filename,
+        contract_path=integration.contract_path,
+        has_contract=bool((integration.contract_content or "").strip()),
+        contract_format=type_def.get("contract_format", ""),
+        linked_hlds=linked_hlds,
+    )
 
 
 def block_out(block: ReusableBlock) -> ReusableBlockOut:
@@ -110,6 +206,26 @@ def build_document_out(document: Document) -> DocumentOut:
         document.reuse_instances, key=lambda i: (i.section_id, i.order_index)
     )
 
+    linked_integrations: list[LinkedIntegrationOut] = []
+    integration_ref: LinkedIntegrationOut | None = None
+    if db is not None:
+        links = (
+            db.query(DocumentIntegrationLink)
+            .filter_by(document_id=document.id)
+            .all()
+        )
+        for link in links:
+            integration = db.get(Integration, link.integration_id)
+            if integration is not None:
+                linked_integrations.append(linked_integration_out(integration))
+        # Back-link: when *this* document is an integration doc, surface a
+        # pointer to its Integration row so the editor can load it.
+        owning = (
+            db.query(Integration).filter_by(document_id=document.id).first()
+        )
+        if owning is not None:
+            integration_ref = linked_integration_out(owning)
+
     return DocumentOut(
         id=document.id,
         increment_id=document.increment_id,
@@ -120,6 +236,8 @@ def build_document_out(document: Document) -> DocumentOut:
         sections=sections,
         diagrams=[DiagramOut.model_validate(d) for d in document.diagrams],
         reuse_instances=[reuse_instance_out(i, blocks) for i in instances],
+        linked_integrations=linked_integrations,
+        integration_ref=integration_ref,
         breadcrumb={
             "repository": repository.name,
             "application_group": group.name,

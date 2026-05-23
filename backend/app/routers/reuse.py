@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import (
+    DOC_TYPE_HLD,
+    DOC_TYPE_INTEGRATION,
     REUSE_FORKED,
     REUSE_LINKED,
     REUSE_SNAPSHOT,
@@ -28,9 +30,13 @@ router = APIRouter(tags=["reuse"])
 
 
 def _get_hld(document_id: int, db: Session) -> Document:
+    """Fetch a document that can embed reusable blocks (HLD or integration)."""
     document = db.get(Document, document_id)
-    if document is None or document.type != "hld":
-        raise HTTPException(404, "HLD document not found")
+    if document is None or document.type not in (
+        DOC_TYPE_HLD,
+        DOC_TYPE_INTEGRATION,
+    ):
+        raise HTTPException(404, "Document not found")
     return document
 
 

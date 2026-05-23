@@ -1,23 +1,27 @@
 """Serialize a Document into the canonical Git file set.
 
-Produced layout (relative to repo root):
+HLD layout (relative to repo root):
     increments/<inc>/hld/hld.md
-    increments/<inc>/hld/sections.yaml
-    increments/<inc>/hld/toc.yaml
-    increments/<inc>/hld/metadata.yaml
-    increments/<inc>/hld/reuse-instances.yaml
-    increments/<inc>/hld/diagrams/<name>.mmd
-    increments/<inc>/hld/diagrams/<name>.svg
+    increments/<inc>/hld/{sections,toc,metadata,reuse-instances}.yaml
+    increments/<inc>/hld/diagrams/<name>.{mmd,svg}
     increments/<inc>/hld/forked-blocks/<block_id>.md
+
+Integration layout:
+    increments/<inc>/integrations/<id>/integration.md
+    increments/<inc>/integrations/<id>/{sections,toc,metadata,reuse-instances}.yaml
+    increments/<inc>/integrations/<id>/diagrams/<name>.{mmd,svg}
+    increments/<inc>/integrations/<id>/<contract_path>   (e.g. proto/.../x.proto)
 """
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 
 import yaml
 from sqlalchemy.orm import object_session
 
 from app.models import (
+    DOC_TYPE_INTEGRATION,
     REUSE_FORKED,
     REUSE_SNAPSHOT,
     Diagram,
@@ -31,9 +35,24 @@ from app.services.block_parser import render_block_file
 from app.services.numbering import ordered_children, ordered_roots
 
 
+def doc_base_dir(document: Document) -> str:
+    """Repo-relative directory holding this document's canonical source."""
+    inc = document.increment.slug
+    if document.type == DOC_TYPE_INTEGRATION and document.integration is not None:
+        return f"increments/{inc}/integrations/{document.integration.integration_id}"
+    return f"increments/{inc}/hld"
+
+
+def doc_main_filename(document: Document) -> str:
+    """Filename of the document's main Markdown body."""
+    if document.type == DOC_TYPE_INTEGRATION:
+        return "integration.md"
+    return "hld.md"
+
+
 def hld_dir(document: Document) -> str:
-    """Repo-relative directory holding this document's HLD source."""
-    return f"increments/{document.increment.slug}/hld"
+    """Backwards-compatible alias for :func:`doc_base_dir`."""
+    return doc_base_dir(document)
 
 
 def _blocks_by_id(document: Document) -> dict[str, ReusableBlock]:
@@ -156,6 +175,8 @@ def build_toc_yaml(document: Document) -> str:
 
 
 def build_metadata_yaml(document: Document) -> str:
+    if document.type == DOC_TYPE_INTEGRATION and document.integration is not None:
+        return build_integration_metadata_yaml(document)
     meta = {
         "title": document.title,
         "type": document.type,
@@ -163,6 +184,32 @@ def build_metadata_yaml(document: Document) -> str:
         "application_group": document.increment.application_group.slug,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
+    return yaml.safe_dump(meta, sort_keys=False, allow_unicode=True)
+
+
+def build_integration_metadata_yaml(document: Document) -> str:
+    """Type-aware ``metadata.yaml`` for an integration document."""
+    integration = document.integration
+    try:
+        extra = json.loads(integration.metadata_json or "{}")
+    except (ValueError, TypeError):
+        extra = {}
+    meta: dict = {
+        "integration_id": integration.integration_id,
+        "name": integration.name,
+        "type": integration.type,
+        "source_application": integration.source_application,
+        "target_application": integration.target_application,
+        "required": integration.required,
+        "status": integration.status,
+    }
+    if isinstance(extra, dict):
+        meta.update(extra)
+    if integration.contract_path:
+        meta["contract_file"] = integration.contract_path
+    meta["documents"] = [doc_main_filename(document)]
+    meta["diagrams"] = sorted(f"{d.name}.mmd" for d in document.diagrams)
+    meta["generated_at"] = datetime.now(timezone.utc).isoformat()
     return yaml.safe_dump(meta, sort_keys=False, allow_unicode=True)
 
 
@@ -219,9 +266,9 @@ def _fork_files(document: Document, base: str) -> dict[str, str]:
 
 def build_file_set(document: Document) -> dict[str, str]:
     """Return ``{repo_relative_path: text_content}`` for the whole document."""
-    base = hld_dir(document)
+    base = doc_base_dir(document)
     files: dict[str, str] = {
-        f"{base}/hld.md": build_markdown(document),
+        f"{base}/{doc_main_filename(document)}": build_markdown(document),
         f"{base}/sections.yaml": build_sections_yaml(document),
         f"{base}/toc.yaml": build_toc_yaml(document),
         f"{base}/metadata.yaml": build_metadata_yaml(document),
@@ -232,4 +279,12 @@ def build_file_set(document: Document) -> dict[str, str]:
         if diagram.svg:
             files[f"{base}/diagrams/{diagram.name}.svg"] = diagram.svg
     files.update(_fork_files(document, base))
+    # Integration contract source (.proto / WSDL / AsyncAPI / ...).
+    integration = (
+        document.integration if document.type == DOC_TYPE_INTEGRATION else None
+    )
+    if integration is not None and integration.contract_path:
+        files[f"{base}/{integration.contract_path}"] = (
+            integration.contract_content or ""
+        )
     return files

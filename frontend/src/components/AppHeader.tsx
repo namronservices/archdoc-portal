@@ -4,6 +4,7 @@ import {
   ChevronRight,
   Download,
   MessageSquare,
+  Plug,
   Save,
 } from "lucide-react";
 import { Button } from "./ui";
@@ -12,10 +13,16 @@ interface Props {
   breadcrumb: Record<string, string>;
   onSave: () => void;
   onExport: (format: "docx" | "pdf") => void;
+  onOpenIntegrations?: () => void;
 }
 
 /** Slim global header — brand, breadcrumb, primary document actions. */
-export default function AppHeader({ breadcrumb, onSave, onExport }: Props) {
+export default function AppHeader({
+  breadcrumb,
+  onSave,
+  onExport,
+  onOpenIntegrations,
+}: Props) {
   const [exportOpen, setExportOpen] = useState(false);
   const crumbs = [
     "Workspaces",
@@ -58,6 +65,12 @@ export default function AppHeader({ breadcrumb, onSave, onExport }: Props) {
       </nav>
 
       <div className="ml-auto flex items-center gap-2">
+        {onOpenIntegrations && (
+          <Button variant="secondary" onClick={onOpenIntegrations}>
+            <Plug size={15} />
+            Integration Docs
+          </Button>
+        )}
         <Button variant="primary" onClick={onSave}>
           <Save size={15} />
           Save
