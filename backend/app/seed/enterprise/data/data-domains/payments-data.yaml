@@ -1,0 +1,4 @@
+data_domain_id: payments-data
+name: Payments Data
+archimate_type: grouping
+description: Data domain covering payment instructions, statuses, and audit.

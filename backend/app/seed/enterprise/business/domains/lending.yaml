@@ -1,0 +1,6 @@
+domain_id: lending
+name: Lending
+owner: business-architecture
+archimate_type: grouping
+description: |
+  Loan origination, servicing, and collections.

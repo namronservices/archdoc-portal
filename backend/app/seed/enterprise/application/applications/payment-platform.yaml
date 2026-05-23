@@ -1,0 +1,13 @@
+application_id: payment-platform
+name: Payment Platform
+application_group_id: payment-modernization
+domain_id: payments
+type: business_application
+architecture_state: transition
+lifecycle: under_development
+criticality: high
+owner: solution-architecture
+archimate_type: application_component
+supports_capabilities:
+  - payment-initiation
+  - payment-validation

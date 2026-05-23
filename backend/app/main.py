@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers import (
     diagrams,
     documents,
+    enterprise,
     hld,
     increments,
     integrations,
@@ -33,6 +34,7 @@ app.include_router(diagrams.router)
 app.include_router(documents.router)
 app.include_router(reusable_blocks.router)
 app.include_router(reuse.router)
+app.include_router(enterprise.router)
 
 
 @app.get("/health", tags=["meta"])

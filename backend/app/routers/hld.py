@@ -6,15 +6,30 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import (
+    CONTEXT_OBJECT_TYPES,
     DOC_TYPE_HLD,
     DOC_TYPE_INTEGRATION,
     KIND_CUSTOM,
+    Application,
+    ApplicationGroup,
+    ArchitectureContextLink,
     ArchitectureIncrement,
+    Capability,
+    DataDomain,
+    DataObject,
     Document,
     DocumentSection,
+    Domain,
+    Principle,
+    Standard,
+    TechnologyPlatform,
 )
 from app.schemas import (
+    ArchitectureContextLayer,
+    ArchitectureContextLinkOut,
+    ArchitectureContextOut,
     ChapterCreate,
+    ContextLinksUpdate,
     DocumentOut,
     HldCreate,
     SectionOut,
@@ -71,6 +86,19 @@ def create_hld(
     db.add(document)
     db.flush()
     apply_hld_template(db, document)
+    db.flush()
+
+    # Pre-link any caller-supplied architecture-context references.
+    for link in payload.context_links:
+        if link.object_type not in CONTEXT_OBJECT_TYPES:
+            continue
+        db.add(
+            ArchitectureContextLink(
+                document_id=document.id,
+                object_type=link.object_type,
+                object_slug=link.object_slug,
+            )
+        )
     db.flush()
 
     commit = git_adapter.commit(
@@ -188,3 +216,199 @@ def update_structure(
     db.commit()
     db.refresh(document)
     return build_document_out(document)
+
+
+# ---------------------------------------------------------------------------
+# Architecture context (Phase 4)
+# ---------------------------------------------------------------------------
+def _resolve_label(db: Session, object_type: str, object_slug: str) -> str | None:
+    """Return the display name/title for a linked enterprise object, if any."""
+    if object_type == "domain":
+        row = db.query(Domain).filter_by(slug=object_slug).first()
+        return row.name if row else None
+    if object_type == "capability":
+        row = db.query(Capability).filter_by(slug=object_slug).first()
+        return row.name if row else None
+    if object_type == "application_group":
+        row = db.query(ApplicationGroup).filter_by(slug=object_slug).first()
+        return row.name if row else None
+    if object_type == "application":
+        row = db.query(Application).filter_by(slug=object_slug).first()
+        return row.name if row else None
+    if object_type == "data_object":
+        row = db.query(DataObject).filter_by(slug=object_slug).first()
+        return row.name if row else None
+    if object_type == "data_domain":
+        row = db.query(DataDomain).filter_by(slug=object_slug).first()
+        return row.name if row else None
+    if object_type == "technology_platform":
+        row = db.query(TechnologyPlatform).filter_by(slug=object_slug).first()
+        return row.name if row else None
+    if object_type == "standard":
+        row = db.query(Standard).filter_by(slug=object_slug).first()
+        return row.title if row else None
+    if object_type == "principle":
+        row = db.query(Principle).filter_by(slug=object_slug).first()
+        return row.title if row else None
+    if object_type == "architecture_increment":
+        row = db.query(ArchitectureIncrement).filter_by(slug=object_slug).first()
+        return row.name if row else None
+    return None
+
+
+# Per-layer ordering of object types — drives the Context tab grouping.
+_LAYERS: list[tuple[str, list[str]]] = [
+    ("Business Layer", ["domain", "capability"]),
+    ("Solution Layer", ["application_group", "architecture_increment"]),
+    ("Scope", ["application", "data_object", "data_domain"]),
+    ("Technology Layer", ["technology_platform"]),
+    ("Standards & Principles", ["standard", "principle"]),
+]
+
+
+def _build_chain(
+    db: Session, document: Document, links_by_type: dict[str, list[ArchitectureContextLink]]
+) -> list[ArchitectureContextLinkOut]:
+    """Top-level connection chain: Enterprise → Domain → Capability → AppGroup
+    → Increment → HLD."""
+    chain: list[ArchitectureContextLinkOut] = []
+    for object_type in (
+        "domain",
+        "capability",
+        "application_group",
+        "architecture_increment",
+    ):
+        link = next(iter(links_by_type.get(object_type, [])), None)
+        if link is None:
+            continue
+        chain.append(
+            ArchitectureContextLinkOut(
+                object_type=object_type,
+                object_slug=link.object_slug,
+                label=_resolve_label(db, object_type, link.object_slug),
+            )
+        )
+    chain.append(
+        ArchitectureContextLinkOut(
+            object_type="hld",
+            object_slug=str(document.id),
+            label=document.title,
+        )
+    )
+    return chain
+
+
+@router.get(
+    "/api/hlds/{document_id}/architecture-context",
+    response_model=ArchitectureContextOut,
+)
+def get_architecture_context(document_id: int, db: Session = Depends(get_db)):
+    document = _get_hld(document_id, db)
+    links = (
+        db.query(ArchitectureContextLink)
+        .filter_by(document_id=document.id)
+        .order_by(ArchitectureContextLink.id)
+        .all()
+    )
+    links_by_type: dict[str, list[ArchitectureContextLink]] = {}
+    for link in links:
+        links_by_type.setdefault(link.object_type, []).append(link)
+
+    layers: list[ArchitectureContextLayer] = []
+    for layer_name, types in _LAYERS:
+        rows: list[ArchitectureContextLinkOut] = []
+        for object_type in types:
+            for link in links_by_type.get(object_type, []):
+                rows.append(
+                    ArchitectureContextLinkOut(
+                        object_type=object_type,
+                        object_slug=link.object_slug,
+                        label=_resolve_label(db, object_type, link.object_slug),
+                    )
+                )
+        layers.append(ArchitectureContextLayer(layer=layer_name, rows=rows))
+
+    return ArchitectureContextOut(
+        document_id=document.id,
+        chain=_build_chain(db, document, links_by_type),
+        layers=layers,
+    )
+
+
+@router.put(
+    "/api/hlds/{document_id}/architecture-context",
+    response_model=ArchitectureContextOut,
+)
+def replace_architecture_context(
+    document_id: int,
+    payload: ContextLinksUpdate,
+    db: Session = Depends(get_db),
+):
+    document = _get_hld(document_id, db)
+    db.query(ArchitectureContextLink).filter_by(document_id=document.id).delete()
+    for link in payload.links:
+        if link.object_type not in CONTEXT_OBJECT_TYPES:
+            raise HTTPException(400, f"Unknown object_type '{link.object_type}'")
+        db.add(
+            ArchitectureContextLink(
+                document_id=document.id,
+                object_type=link.object_type,
+                object_slug=link.object_slug,
+            )
+        )
+    db.commit()
+    return get_architecture_context(document_id, db)
+
+
+@router.post(
+    "/api/hlds/{document_id}/links/{object_type}/{object_slug}",
+    response_model=ArchitectureContextOut,
+)
+def add_context_link(
+    document_id: int,
+    object_type: str,
+    object_slug: str,
+    db: Session = Depends(get_db),
+):
+    document = _get_hld(document_id, db)
+    if object_type not in CONTEXT_OBJECT_TYPES:
+        raise HTTPException(400, f"Unknown object_type '{object_type}'")
+    existing = (
+        db.query(ArchitectureContextLink)
+        .filter_by(
+            document_id=document.id,
+            object_type=object_type,
+            object_slug=object_slug,
+        )
+        .first()
+    )
+    if existing is None:
+        db.add(
+            ArchitectureContextLink(
+                document_id=document.id,
+                object_type=object_type,
+                object_slug=object_slug,
+            )
+        )
+        db.commit()
+    return get_architecture_context(document_id, db)
+
+
+@router.delete(
+    "/api/hlds/{document_id}/links/{object_type}/{object_slug}",
+    response_model=ArchitectureContextOut,
+)
+def remove_context_link(
+    document_id: int,
+    object_type: str,
+    object_slug: str,
+    db: Session = Depends(get_db),
+):
+    _get_hld(document_id, db)
+    db.query(ArchitectureContextLink).filter_by(
+        document_id=document_id,
+        object_type=object_type,
+        object_slug=object_slug,
+    ).delete()
+    db.commit()
+    return get_architecture_context(document_id, db)

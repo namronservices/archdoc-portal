@@ -1,0 +1,6 @@
+standard_id: mtls-standard
+title: Mutual TLS Standard
+archimate_type: requirement
+body: |
+  All internal service-to-service traffic must use mutual TLS with rotating
+  certificates issued by the platform certificate authority.

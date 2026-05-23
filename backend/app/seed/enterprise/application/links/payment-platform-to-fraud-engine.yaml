@@ -1,0 +1,5 @@
+link_id: payment-platform-to-fraud-engine
+source_app: payment-platform
+target_app: fraud-engine
+kind: grpc
+archimate_type: application_collaboration

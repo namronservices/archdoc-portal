@@ -1,0 +1,6 @@
+capability_id: payment-validation
+name: Payment Validation
+domain_id: payments
+criticality: high
+archimate_type: business_capability
+description: Validate payment instructions against business and compliance rules.

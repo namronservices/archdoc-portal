@@ -4,14 +4,14 @@ from __future__ import annotations
 
 def test_full_hld_workflow(client):
     # 1. Repository
-    repo = client.post("/api/repositories", json={"name": "Payment Modernization"})
+    repo = client.post("/api/repositories", json={"name": "Payment Mod HLD"})
     assert repo.status_code == 201, repo.text
     repo_id = repo.json()["id"]
 
     # 2. Application group
     group = client.post(
         f"/api/repositories/{repo_id}/application-groups",
-        json={"name": "Payments"},
+        json={"name": "Payments HLD"},
     )
     assert group.status_code == 201, group.text
     group_id = group.json()["id"]
@@ -116,7 +116,7 @@ def test_reuse_blocks_workflow(client):
     ).json()["id"]
     group_id = client.post(
         f"/api/repositories/{repo_id}/application-groups",
-        json={"name": "Payments"},
+        json={"name": "Payments Reuse"},
     ).json()["id"]
     increment_id = client.post(
         "/api/increments",

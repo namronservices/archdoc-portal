@@ -53,21 +53,28 @@ def create_application_group(
         raise HTTPException(404, "Repository not found")
 
     slug = slugify(payload.slug or payload.name)
-    exists = (
-        db.query(ApplicationGroup)
-        .filter_by(repository_id=repository_id, slug=slug)
-        .first()
-    )
-    if exists:
-        raise HTTPException(409, f"Application group '{slug}' already exists")
-
-    group = ApplicationGroup(
-        repository_id=repository_id,
-        slug=slug,
-        name=payload.name,
-        description=payload.description,
-    )
-    db.add(group)
+    existing = db.query(ApplicationGroup).filter_by(slug=slug).first()
+    if existing is not None:
+        if (
+            existing.repository_id is not None
+            and existing.repository_id != repository_id
+        ):
+            raise HTTPException(409, f"Application group '{slug}' already exists")
+        # Adopt the enterprise-synced group into this repository.
+        existing.repository_id = repository_id
+        if not existing.description and payload.description:
+            existing.description = payload.description
+        if not existing.name and payload.name:
+            existing.name = payload.name
+        group = existing
+    else:
+        group = ApplicationGroup(
+            repository_id=repository_id,
+            slug=slug,
+            name=payload.name,
+            description=payload.description,
+        )
+        db.add(group)
     db.commit()
     db.refresh(group)
 

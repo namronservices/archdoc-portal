@@ -9,10 +9,83 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from sqlalchemy.orm import object_session
+
 from app.config import settings
-from app.models import REUSE_FORKED, Document
+from app.models import (
+    REUSE_FORKED,
+    Application,
+    ArchitectureContextLink,
+    Capability,
+    DataDomain,
+    DataObject,
+    Document,
+    Domain,
+    Principle,
+    Standard,
+    TechnologyPlatform,
+)
 from app.services.mermaid import mmdc_command
 from app.services.serializer import build_markdown
+
+
+_LABEL_RESOLVERS = {
+    "domain": (Domain, "name"),
+    "capability": (Capability, "name"),
+    "application": (Application, "name"),
+    "data_object": (DataObject, "name"),
+    "data_domain": (DataDomain, "name"),
+    "technology_platform": (TechnologyPlatform, "name"),
+    "standard": (Standard, "title"),
+    "principle": (Principle, "title"),
+}
+
+
+def _architecture_context(document: Document) -> dict:
+    """Resolved architecture context for the export companion metadata."""
+    db = object_session(document)
+    if db is None:
+        return {}
+    links = (
+        db.query(ArchitectureContextLink)
+        .filter_by(document_id=document.id)
+        .all()
+    )
+    rows: list[dict] = []
+    for link in links:
+        resolver = _LABEL_RESOLVERS.get(link.object_type)
+        label = None
+        if resolver is not None:
+            model, attr = resolver
+            row = db.query(model).filter_by(slug=link.object_slug).first()
+            if row is not None:
+                label = getattr(row, attr)
+        rows.append(
+            {
+                "object_type": link.object_type,
+                "object_slug": link.object_slug,
+                "label": label,
+            }
+        )
+    # Lightweight chain trail (Domain → Capability → AppGroup → Increment → HLD).
+    chain: list[dict] = []
+    by_type = {row["object_type"]: row for row in rows}
+    for object_type in (
+        "domain",
+        "capability",
+        "application_group",
+        "architecture_increment",
+    ):
+        if object_type in by_type:
+            chain.append(by_type[object_type])
+    chain.append(
+        {
+            "object_type": "hld",
+            "object_slug": str(document.id),
+            "label": document.title,
+        }
+    )
+    return {"chain": chain, "links": rows}
 
 
 def _included_reusable_blocks(document: Document) -> list[dict]:
@@ -106,7 +179,10 @@ def run_export(document: Document, fmt: str) -> ExportResult:
         meta_path = out_dir / f"{artifact.stem}.metadata.json"
         meta_path.write_text(
             json.dumps(
-                {"included_reusable_blocks": _included_reusable_blocks(document)},
+                {
+                    "included_reusable_blocks": _included_reusable_blocks(document),
+                    "architecture_context": _architecture_context(document),
+                },
                 indent=2,
             ),
             encoding="utf-8",

@@ -42,19 +42,33 @@ class Repository(Base):
 
 
 class ApplicationGroup(Base):
-    """A TOGAF-style application group within a repository."""
+    """A TOGAF-style application group.
+
+    Phase 4 unifies this row with the enterprise repo's
+    ``application/application-groups/<slug>.yaml``: TOGAF columns
+    (``domain_slug``, ``archimate_type``, ``git_path``) are populated by the
+    enterprise sync; ``repository_id`` is auto-provisioned on first use and
+    therefore nullable.
+    """
 
     __tablename__ = "application_groups"
-    __table_args__ = (UniqueConstraint("repository_id", "slug"),)
+    __table_args__ = (UniqueConstraint("slug"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    repository_id: Mapped[int] = mapped_column(ForeignKey("repositories.id"))
+    repository_id: Mapped[int | None] = mapped_column(
+        ForeignKey("repositories.id"), nullable=True
+    )
     slug: Mapped[str] = mapped_column(String(120), index=True)
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str] = mapped_column(Text, default="")
+    domain_slug: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    archimate_type: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    git_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
-    repository: Mapped[Repository] = relationship(back_populates="application_groups")
+    repository: Mapped[Repository | None] = relationship(
+        back_populates="application_groups"
+    )
     increments: Mapped[list["ArchitectureIncrement"]] = relationship(
         back_populates="application_group", cascade="all, delete-orphan"
     )
@@ -330,4 +344,174 @@ class DocumentIntegrationLink(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     document_id: Mapped[int] = mapped_column(ForeignKey("documents.id"))
     integration_id: Mapped[int] = mapped_column(ForeignKey("integrations.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 — Enterprise Repository (TOGAF-style metamodel)
+# ---------------------------------------------------------------------------
+# Slug-keyed cache of objects whose canonical source lives in the shared
+# ``enterprise-repository`` Git repo. Sync is one-way Git→DB at startup +
+# on-demand; portal writes go Git→DB via the enterprise router.
+
+# Polymorphic object types referenced by ``architecture_context_links``.
+CONTEXT_OBJECT_TYPES = (
+    "domain",
+    "capability",
+    "application_group",
+    "application",
+    "data_object",
+    "data_domain",
+    "technology_platform",
+    "standard",
+    "principle",
+    "architecture_increment",
+)
+
+
+class Domain(Base):
+    __tablename__ = "domains"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    owner: Mapped[str] = mapped_column(String(120), default="")
+    description: Mapped[str] = mapped_column(Text, default="")
+    archimate_type: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    git_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class Capability(Base):
+    __tablename__ = "capabilities"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    domain_slug: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    criticality: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    description: Mapped[str] = mapped_column(Text, default="")
+    archimate_type: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    git_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class Application(Base):
+    __tablename__ = "applications"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    application_group_slug: Mapped[str | None] = mapped_column(
+        String(120), nullable=True
+    )
+    domain_slug: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    type: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    architecture_state: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    lifecycle: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    criticality: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    owner: Mapped[str] = mapped_column(String(120), default="")
+    supports_capabilities: Mapped[str] = mapped_column(Text, default="[]")  # JSON
+    archimate_type: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    git_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class ApplicationLink(Base):
+    __tablename__ = "application_links"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(String(160), unique=True, index=True)
+    source_app_slug: Mapped[str] = mapped_column(String(120))
+    target_app_slug: Mapped[str] = mapped_column(String(120))
+    kind: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    archimate_type: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    git_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class DataObject(Base):
+    __tablename__ = "data_objects"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    domain_slug: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    description: Mapped[str] = mapped_column(Text, default="")
+    archimate_type: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    git_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class DataDomain(Base):
+    __tablename__ = "data_domains"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(Text, default="")
+    archimate_type: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    git_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class TechnologyPlatform(Base):
+    __tablename__ = "technology_platforms"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    type: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    owner: Mapped[str] = mapped_column(String(120), default="")
+    description: Mapped[str] = mapped_column(Text, default="")
+    archimate_type: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    git_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class Standard(Base):
+    __tablename__ = "standards"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    title: Mapped[str] = mapped_column(String(300))
+    body: Mapped[str] = mapped_column(Text, default="")
+    archimate_type: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    git_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class Principle(Base):
+    __tablename__ = "principles"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    title: Mapped[str] = mapped_column(String(300))
+    body: Mapped[str] = mapped_column(Text, default="")
+    archimate_type: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    git_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class ArchitectureContextLink(Base):
+    """Polymorphic link from an HLD ``Document`` to an enterprise object."""
+
+    __tablename__ = "architecture_context_links"
+    __table_args__ = (
+        UniqueConstraint("document_id", "object_type", "object_slug"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(ForeignKey("documents.id"))
+    object_type: Mapped[str] = mapped_column(String(40))
+    object_slug: Mapped[str] = mapped_column(String(160))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

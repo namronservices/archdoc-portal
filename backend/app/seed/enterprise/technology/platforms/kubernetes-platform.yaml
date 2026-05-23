@@ -1,0 +1,6 @@
+technology_platform_id: kubernetes-platform
+name: Kubernetes Platform
+type: runtime_platform
+owner: platform-engineering
+archimate_type: technology_service
+description: Managed Kubernetes for stateless workloads.

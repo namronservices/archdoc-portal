@@ -1,16 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   Boxes,
   Camera,
+  ChevronRight,
   GitFork,
   Layers3,
   Link2,
   Plug,
+  Plus,
   Search,
+  X,
 } from "lucide-react";
 import { api } from "../api/client";
 import type {
+  ArchitectureContext,
+  ContextObjectType,
   HldDocument,
   IntegrationType,
   LinkedIntegration,
@@ -76,6 +81,123 @@ export default function ContextPanel({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [archContext, setArchContext] = useState<ArchitectureContext | null>(
+    null,
+  );
+  const [contextOptions, setContextOptions] = useState<
+    Record<string, { slug: string; label: string }[]>
+  >({});
+  const [contextBusy, setContextBusy] = useState(false);
+
+  const loadArchContext = useCallback(async () => {
+    try {
+      const ctx = await api.getArchitectureContext(document.id);
+      setArchContext(ctx);
+    } catch (e) {
+      setLoadError((e as Error).message);
+    }
+  }, [document.id]);
+
+  // Lazy-load architecture context + enterprise object lists when the Context
+  // tab opens.
+  useEffect(() => {
+    if (tab !== "context" || archContext !== null) return;
+    loadArchContext();
+    Promise.all([
+      api.listDomains(),
+      api.listCapabilities(),
+      api.listEnterpriseApplicationGroups(),
+      api.listEnterpriseApplications(),
+      api.listDataObjects(),
+      api.listDataDomains(),
+      api.listTechnologyPlatforms(),
+      api.listStandards(),
+      api.listPrinciples(),
+    ])
+      .then(
+        ([
+          domains,
+          capabilities,
+          appGroups,
+          apps,
+          dataObjects,
+          dataDomains,
+          platforms,
+          standards,
+          principles,
+        ]) => {
+          setContextOptions({
+            domain: domains.map((d) => ({ slug: d.slug, label: d.name })),
+            capability: capabilities.map((c) => ({
+              slug: c.slug,
+              label: c.name,
+            })),
+            application_group: appGroups.map((g) => ({
+              slug: g.slug,
+              label: g.name,
+            })),
+            application: apps.map((a) => ({ slug: a.slug, label: a.name })),
+            data_object: dataObjects.map((d) => ({
+              slug: d.slug,
+              label: d.name,
+            })),
+            data_domain: dataDomains.map((d) => ({
+              slug: d.slug,
+              label: d.name,
+            })),
+            technology_platform: platforms.map((p) => ({
+              slug: p.slug,
+              label: p.name,
+            })),
+            standard: standards.map((s) => ({ slug: s.slug, label: s.title })),
+            principle: principles.map((p) => ({
+              slug: p.slug,
+              label: p.title,
+            })),
+          });
+        },
+      )
+      .catch((e) => setLoadError((e as Error).message));
+  }, [tab, archContext, loadArchContext]);
+
+  async function addContextLink(
+    objectType: ContextObjectType,
+    objectSlug: string,
+  ) {
+    if (!objectSlug) return;
+    setContextBusy(true);
+    try {
+      const updated = await api.addContextLink(
+        document.id,
+        objectType,
+        objectSlug,
+      );
+      setArchContext(updated);
+    } catch (e) {
+      setLoadError((e as Error).message);
+    } finally {
+      setContextBusy(false);
+    }
+  }
+
+  async function removeContextLink(
+    objectType: ContextObjectType,
+    objectSlug: string,
+  ) {
+    setContextBusy(true);
+    try {
+      const updated = await api.removeContextLink(
+        document.id,
+        objectType,
+        objectSlug,
+      );
+      setArchContext(updated);
+    } catch (e) {
+      setLoadError((e as Error).message);
+    } finally {
+      setContextBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (tab !== "blocks" || blocks.length > 0) return;
@@ -119,49 +241,6 @@ export default function ContextPanel({
       setBusy(null);
     }
   }
-
-  const b = document.breadcrumb;
-  const contextLayers: { layer: string; rows: { label: string; value: string | null }[] }[] =
-    [
-      {
-        layer: "Business Layer",
-        rows: [
-          { label: "Domain", value: b.repository ?? null },
-          { label: "Capabilities", value: null },
-          { label: "Business Process (BPMN)", value: null },
-        ],
-      },
-      {
-        layer: "Solution Layer",
-        rows: [
-          { label: "Application Group", value: b.application_group ?? null },
-          { label: "Architecture Increment", value: b.increment ?? null },
-          { label: "Architecture State", value: null },
-        ],
-      },
-      {
-        layer: "Scope",
-        rows: [
-          { label: "Applications", value: null },
-          { label: "Integrations", value: null },
-          { label: "Data Objects", value: null },
-        ],
-      },
-      {
-        layer: "Technology Layer",
-        rows: [
-          { label: "Technology Platforms", value: null },
-          { label: "Deployment Environments", value: null },
-        ],
-      },
-      {
-        layer: "Standards & Principles",
-        rows: [
-          { label: "Linked Standards", value: null },
-          { label: "Linked Principles", value: null },
-        ],
-      },
-    ];
 
   return (
     <aside className="flex w-80 flex-col border-l border-slate-200 bg-panel">
@@ -300,40 +379,45 @@ export default function ContextPanel({
 
       {tab === "context" && (
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-3">
-          <p className="mb-3 flex items-center gap-1.5 text-[11px] text-slate-400">
+          <p className="mb-2 flex items-center gap-1.5 text-[11px] text-slate-400">
             <Layers3 size={13} />
-            How this HLD connects to the enterprise architecture model.
+            How this HLD connects to the enterprise TOGAF model.
           </p>
-          {contextLayers.map((group) => (
-            <div key={group.layer} className="mb-3">
+
+          {/* Top-level chain: Enterprise → Domain → Capability → AppGroup → Increment → HLD */}
+          {archContext && archContext.chain.length > 0 && (
+            <div className="mb-3 rounded-md border border-slate-200 bg-white p-2 text-[11px]">
               <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                {group.layer}
+                Top-level chain
               </div>
-              <div className="space-y-0.5">
-                {group.rows.map((r) => (
-                  <div
-                    key={r.label}
-                    className="flex items-center gap-2 rounded px-1.5 py-1 text-xs hover:bg-white"
-                  >
-                    <span className="text-slate-500">{r.label}</span>
-                    {r.value ? (
-                      <span className="ml-auto font-medium text-slate-800">
-                        {r.value}
-                      </span>
-                    ) : (
-                      <span className="ml-auto text-[11px] italic text-slate-300">
-                        Not linked yet
-                      </span>
-                    )}
-                  </div>
+              <div className="flex flex-wrap items-center gap-1">
+                <Badge tone="indigo">Enterprise</Badge>
+                {archContext.chain.map((link, i) => (
+                  <span key={i} className="flex items-center gap-1">
+                    <ChevronRight size={11} className="text-slate-300" />
+                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-700">
+                      {link.label ?? link.object_slug}
+                    </span>
+                  </span>
                 ))}
               </div>
             </div>
+          )}
+
+          {!archContext && (
+            <p className="text-[11px] text-slate-400">Loading…</p>
+          )}
+
+          {archContext?.layers.map((layer) => (
+            <ContextLayerBlock
+              key={layer.layer}
+              layer={layer}
+              options={contextOptions}
+              busy={contextBusy}
+              onAdd={addContextLink}
+              onRemove={removeContextLink}
+            />
           ))}
-          <p className="mt-2 border-t border-slate-200 pt-2 text-[11px] text-slate-400">
-            Deeper enterprise-model linking (capabilities, BPMN, data objects)
-            arrives in a later phase.
-          </p>
         </div>
       )}
 
@@ -414,6 +498,151 @@ export default function ContextPanel({
         </section>
       )}
     </aside>
+  );
+}
+
+// Per-layer types — drives the "+ Add" affordance for each layer.
+const LAYER_TYPES: Record<string, ContextObjectType[]> = {
+  "Business Layer": ["domain", "capability"],
+  "Solution Layer": ["application_group", "architecture_increment"],
+  Scope: ["application", "data_object", "data_domain"],
+  "Technology Layer": ["technology_platform"],
+  "Standards & Principles": ["standard", "principle"],
+};
+
+const TYPE_LABELS: Record<ContextObjectType, string> = {
+  domain: "Domain",
+  capability: "Capability",
+  application_group: "Application Group",
+  architecture_increment: "Architecture Increment",
+  application: "Application",
+  data_object: "Data Object",
+  data_domain: "Data Domain",
+  technology_platform: "Technology Platform",
+  standard: "Standard",
+  principle: "Principle",
+  hld: "HLD",
+};
+
+function ContextLayerBlock({
+  layer,
+  options,
+  busy,
+  onAdd,
+  onRemove,
+}: {
+  layer: { layer: string; rows: { object_type: ContextObjectType; object_slug: string; label: string | null }[] };
+  options: Record<string, { slug: string; label: string }[]>;
+  busy: boolean;
+  onAdd: (objectType: ContextObjectType, objectSlug: string) => Promise<void>;
+  onRemove: (
+    objectType: ContextObjectType,
+    objectSlug: string,
+  ) => Promise<void>;
+}) {
+  const types = LAYER_TYPES[layer.layer] ?? [];
+  const [pickerType, setPickerType] = useState<ContextObjectType | null>(null);
+  const [pickerValue, setPickerValue] = useState<string>("");
+
+  // architecture_increment is set at HLD creation and the operational tables —
+  // we don't surface a picker for it, but we still show linked rows.
+  const pickableTypes = types.filter((t) => t !== "architecture_increment");
+
+  return (
+    <div className="mb-3">
+      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+        {layer.layer}
+      </div>
+      <div className="space-y-1.5">
+        {layer.rows.length === 0 && pickerType === null && (
+          <p className="px-1 text-[11px] italic text-slate-300">
+            Nothing linked yet.
+          </p>
+        )}
+        {layer.rows.map((row) => (
+          <div
+            key={`${row.object_type}:${row.object_slug}`}
+            className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px]"
+          >
+            <Badge tone="slate" className="!px-1">
+              {TYPE_LABELS[row.object_type]}
+            </Badge>
+            <span className="truncate text-slate-700">
+              {row.label ?? row.object_slug}
+            </span>
+            <button
+              className="ml-auto text-slate-400 hover:text-rose-600 disabled:opacity-40"
+              disabled={busy || row.object_type === "architecture_increment"}
+              title={
+                row.object_type === "architecture_increment"
+                  ? "Set at HLD creation"
+                  : "Remove link"
+              }
+              onClick={() => onRemove(row.object_type, row.object_slug)}
+            >
+              <X size={12} />
+            </button>
+          </div>
+        ))}
+
+        {pickerType === null ? (
+          pickableTypes.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {pickableTypes.map((t) => (
+                <button
+                  key={t}
+                  className="inline-flex items-center gap-1 rounded-md border border-dashed border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:border-brand hover:text-brand-fg"
+                  onClick={() => {
+                    setPickerType(t);
+                    setPickerValue("");
+                  }}
+                >
+                  <Plus size={11} /> Add {TYPE_LABELS[t]}
+                </button>
+              ))}
+            </div>
+          )
+        ) : (
+          <div className="flex items-center gap-1 rounded-md border border-brand bg-brand-soft/30 px-2 py-1">
+            <span className="text-[11px] text-slate-500">
+              {TYPE_LABELS[pickerType]}:
+            </span>
+            <select
+              className="min-w-0 flex-1 rounded border border-slate-300 px-1 py-0.5 text-[11px]"
+              value={pickerValue}
+              onChange={(e) => setPickerValue(e.target.value)}
+            >
+              <option value="">— pick —</option>
+              {(options[pickerType] ?? []).map((opt) => (
+                <option key={opt.slug} value={opt.slug}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <button
+              className="rounded bg-brand px-2 py-0.5 text-[11px] text-white disabled:opacity-40"
+              disabled={busy || !pickerValue}
+              onClick={async () => {
+                await onAdd(pickerType, pickerValue);
+                setPickerType(null);
+                setPickerValue("");
+              }}
+            >
+              Add
+            </button>
+            <button
+              className="text-slate-400 hover:text-slate-700"
+              onClick={() => {
+                setPickerType(null);
+                setPickerValue("");
+              }}
+            >
+              <X size={12} />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

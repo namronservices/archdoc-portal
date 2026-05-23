@@ -1,0 +1,6 @@
+principle_id: cloud-native-first
+title: Cloud-Native First
+archimate_type: principle
+body: |
+  Prefer managed, cloud-native services over self-managed infrastructure to
+  reduce operational burden and increase elasticity.

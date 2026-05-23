@@ -33,10 +33,13 @@ class ApplicationGroupCreate(BaseModel):
 
 class ApplicationGroupOut(ORMModel):
     id: int
-    repository_id: int
+    repository_id: int | None
     slug: str
     name: str
     description: str
+    domain_slug: str | None = None
+    archimate_type: str | None = None
+    git_path: str | None = None
     created_at: datetime
 
 
@@ -59,6 +62,7 @@ class IncrementOut(ORMModel):
 # --- HLD documents ------------------------------------------------------
 class HldCreate(BaseModel):
     title: str | None = Field(default=None, max_length=300)
+    context_links: list["ArchitectureContextLinkIn"] = []
 
 
 class SectionOut(ORMModel):
@@ -314,6 +318,281 @@ class IntegrationCreateMissingOut(BaseModel):
 class IntegrationValidationOut(BaseModel):
     integration_id: int
     results: list[ValidationItem]
+
+
+# --- Enterprise repository (Phase 4) -----------------------------------
+class _EnterpriseBase(BaseModel):
+    archimate_type: str | None = None
+
+
+class DomainIn(_EnterpriseBase):
+    slug: str | None = None
+    name: str = Field(min_length=1, max_length=200)
+    owner: str = ""
+    description: str = ""
+
+
+class DomainOut(ORMModel):
+    slug: str
+    name: str
+    owner: str
+    description: str
+    archimate_type: str | None = None
+    git_path: str | None = None
+
+
+class CapabilityIn(_EnterpriseBase):
+    slug: str | None = None
+    name: str = Field(min_length=1, max_length=200)
+    domain_slug: str | None = None
+    criticality: str | None = None
+    description: str = ""
+
+
+class CapabilityOut(ORMModel):
+    slug: str
+    name: str
+    domain_slug: str | None = None
+    criticality: str | None = None
+    description: str
+    archimate_type: str | None = None
+    git_path: str | None = None
+
+
+class ApplicationIn(_EnterpriseBase):
+    slug: str | None = None
+    name: str = Field(min_length=1, max_length=200)
+    application_group_slug: str | None = None
+    domain_slug: str | None = None
+    type: str | None = None
+    architecture_state: str | None = None
+    lifecycle: str | None = None
+    criticality: str | None = None
+    owner: str = ""
+    supports_capabilities: list[str] = []
+
+
+class ApplicationOut(ORMModel):
+    slug: str
+    name: str
+    application_group_slug: str | None = None
+    domain_slug: str | None = None
+    type: str | None = None
+    architecture_state: str | None = None
+    lifecycle: str | None = None
+    criticality: str | None = None
+    owner: str
+    supports_capabilities: list[str] = []
+    archimate_type: str | None = None
+    git_path: str | None = None
+
+
+class ApplicationLinkIn(_EnterpriseBase):
+    slug: str | None = None
+    source_app_slug: str
+    target_app_slug: str
+    kind: str | None = None
+
+
+class ApplicationLinkOut(ORMModel):
+    slug: str
+    source_app_slug: str
+    target_app_slug: str
+    kind: str | None = None
+    archimate_type: str | None = None
+    git_path: str | None = None
+
+
+class DataObjectIn(_EnterpriseBase):
+    slug: str | None = None
+    name: str = Field(min_length=1, max_length=200)
+    domain_slug: str | None = None
+    description: str = ""
+
+
+class DataObjectOut(ORMModel):
+    slug: str
+    name: str
+    domain_slug: str | None = None
+    description: str
+    archimate_type: str | None = None
+    git_path: str | None = None
+
+
+class DataDomainIn(_EnterpriseBase):
+    slug: str | None = None
+    name: str = Field(min_length=1, max_length=200)
+    description: str = ""
+
+
+class DataDomainOut(ORMModel):
+    slug: str
+    name: str
+    description: str
+    archimate_type: str | None = None
+    git_path: str | None = None
+
+
+class TechnologyPlatformIn(_EnterpriseBase):
+    slug: str | None = None
+    name: str = Field(min_length=1, max_length=200)
+    type: str | None = None
+    owner: str = ""
+    description: str = ""
+
+
+class TechnologyPlatformOut(ORMModel):
+    slug: str
+    name: str
+    type: str | None = None
+    owner: str
+    description: str
+    archimate_type: str | None = None
+    git_path: str | None = None
+
+
+class StandardIn(_EnterpriseBase):
+    slug: str | None = None
+    title: str = Field(min_length=1, max_length=300)
+    body: str = ""
+
+
+class StandardOut(ORMModel):
+    slug: str
+    title: str
+    body: str
+    archimate_type: str | None = None
+    git_path: str | None = None
+
+
+class PrincipleIn(_EnterpriseBase):
+    slug: str | None = None
+    title: str = Field(min_length=1, max_length=300)
+    body: str = ""
+
+
+class PrincipleOut(ORMModel):
+    slug: str
+    title: str
+    body: str
+    archimate_type: str | None = None
+    git_path: str | None = None
+
+
+# Used both for the dedicated enterprise.application-groups CRUD AND for the
+# enriched ApplicationGroupOut shape returned by repositories.py.
+class EnterpriseApplicationGroupIn(_EnterpriseBase):
+    slug: str | None = None
+    name: str = Field(min_length=1, max_length=200)
+    domain_slug: str | None = None
+    description: str = ""
+
+
+# --- Architecture context links ----------------------------------------
+class ArchitectureContextLinkIn(BaseModel):
+    object_type: str
+    object_slug: str
+
+
+class ArchitectureContextLinkOut(BaseModel):
+    object_type: str
+    object_slug: str
+    label: str | None = None  # resolved name/title from the enterprise object
+
+
+class ArchitectureContextLayer(BaseModel):
+    layer: str
+    rows: list[ArchitectureContextLinkOut]
+
+
+class ArchitectureContextOut(BaseModel):
+    document_id: int
+    chain: list[ArchitectureContextLinkOut]  # Enterprise → Domain → … → HLD
+    layers: list[ArchitectureContextLayer]
+
+
+class ContextLinksUpdate(BaseModel):
+    links: list[ArchitectureContextLinkIn]
+
+
+# --- Dashboard aggregate -----------------------------------------------
+class DashboardDomain(BaseModel):
+    slug: str
+    name: str
+    capability_count: int
+    application_group_count: int
+    application_count: int
+
+
+class DashboardCapability(BaseModel):
+    slug: str
+    name: str
+    domain_slug: str | None = None
+    criticality: str | None = None
+
+
+class DashboardIncrement(BaseModel):
+    id: int
+    slug: str
+    name: str
+    status: str
+    hld_id: int | None = None
+
+
+class DashboardApplicationGroup(BaseModel):
+    id: int
+    slug: str
+    name: str
+    domain_slug: str | None = None
+    increment_count: int
+    hld_count: int
+    application_count: int
+    recent_increments: list[DashboardIncrement]
+
+
+class DashboardApplication(BaseModel):
+    slug: str
+    name: str
+    application_group_slug: str | None = None
+    domain_slug: str | None = None
+    architecture_state: str | None = None
+    criticality: str | None = None
+
+
+class DashboardRecentHld(BaseModel):
+    id: int
+    title: str
+    increment_id: int
+    increment_slug: str
+    application_group_slug: str | None = None
+    updated_at: datetime
+
+
+class DashboardOut(BaseModel):
+    business: dict[str, list]
+    data: dict[str, list]
+    application: dict[str, list]
+    technology: dict[str, list]
+    motivation: dict[str, list]
+    recent_hlds: list[DashboardRecentHld]
+
+
+# --- Start-increment one-shot ------------------------------------------
+class StartIncrementRequest(BaseModel):
+    increment_name: str = Field(min_length=1, max_length=200)
+    increment_slug: str | None = Field(default=None, max_length=120)
+    hld_title: str | None = Field(default=None, max_length=300)
+
+
+class StartIncrementOut(BaseModel):
+    application_group_slug: str
+    increment_id: int
+    hld_id: int
+
+
+# --- Sync counts -------------------------------------------------------
+class EnterpriseSyncOut(BaseModel):
+    counts: dict[str, int]
 
 
 class LinkedIntegrationOut(BaseModel):

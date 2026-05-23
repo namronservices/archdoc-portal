@@ -1,0 +1,6 @@
+principle_id: security-by-design
+title: Security by Design
+archimate_type: principle
+body: |
+  Every architecture decision must consider authentication, authorization,
+  encryption, data protection, and trust boundaries from inception.

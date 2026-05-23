@@ -1,9 +1,19 @@
 import type {
   ApplicationGroup,
+  ApplicationLink,
+  ArchitectureContext,
   BlockCompare,
+  Capability,
   CommitInfo,
+  ContextObjectType,
   Contract,
+  Dashboard,
+  DataDomain,
+  DataObject,
   Diagram,
+  Domain,
+  EnterpriseApplication,
+  EnterpriseSyncResponse,
   ExportJob,
   HldDocument,
   Increment,
@@ -12,10 +22,14 @@ import type {
   IntegrationType,
   IntegrationValidationResponse,
   LinkedIntegration,
+  Principle,
   Repository,
   ReusableBlock,
   ReuseInstance,
   Section,
+  Standard,
+  StartIncrementResponse,
+  TechnologyPlatform,
   ValidationResponse,
 } from "../types";
 
@@ -279,5 +293,185 @@ export const api = {
   listLinkedIntegrations: (documentId: number) =>
     request<LinkedIntegration[]>(
       `/api/hlds/${documentId}/linked-integrations`,
+    ),
+
+  // --- Phase 4: Enterprise repository (TOGAF) --------------------------
+  getDashboard: () => request<Dashboard>("/api/enterprise/dashboard"),
+  syncEnterprise: () =>
+    request<EnterpriseSyncResponse>("/api/enterprise/sync", {
+      method: "POST",
+    }),
+  startIncrement: (
+    groupSlug: string,
+    data: {
+      increment_name: string;
+      increment_slug?: string;
+      hld_title?: string;
+    },
+  ) =>
+    request<StartIncrementResponse>(
+      `/api/enterprise/application-groups/${groupSlug}/start-increment`,
+      { method: "POST", body: body(data) },
+    ),
+
+  listDomains: () => request<Domain[]>("/api/enterprise/domains"),
+  createDomain: (data: Partial<Domain> & { name: string }) =>
+    request<Domain>("/api/enterprise/domains", {
+      method: "POST",
+      body: body(data),
+    }),
+  updateDomain: (slug: string, data: Partial<Domain> & { name: string }) =>
+    request<Domain>(`/api/enterprise/domains/${slug}`, {
+      method: "PUT",
+      body: body(data),
+    }),
+
+  listCapabilities: (domainSlug?: string) => {
+    const qs = domainSlug
+      ? `?domain_slug=${encodeURIComponent(domainSlug)}`
+      : "";
+    return request<Capability[]>(`/api/enterprise/capabilities${qs}`);
+  },
+  createCapability: (data: Partial<Capability> & { name: string }) =>
+    request<Capability>("/api/enterprise/capabilities", {
+      method: "POST",
+      body: body(data),
+    }),
+  updateCapability: (
+    slug: string,
+    data: Partial<Capability> & { name: string },
+  ) =>
+    request<Capability>(`/api/enterprise/capabilities/${slug}`, {
+      method: "PUT",
+      body: body(data),
+    }),
+
+  listEnterpriseApplications: (filters?: {
+    domain_slug?: string;
+    application_group_slug?: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (filters?.domain_slug) params.set("domain_slug", filters.domain_slug);
+    if (filters?.application_group_slug)
+      params.set("application_group_slug", filters.application_group_slug);
+    const qs = params.toString();
+    return request<EnterpriseApplication[]>(
+      `/api/enterprise/applications${qs ? `?${qs}` : ""}`,
+    );
+  },
+  createEnterpriseApplication: (
+    data: Partial<EnterpriseApplication> & { name: string },
+  ) =>
+    request<EnterpriseApplication>("/api/enterprise/applications", {
+      method: "POST",
+      body: body(data),
+    }),
+  updateEnterpriseApplication: (
+    slug: string,
+    data: Partial<EnterpriseApplication> & { name: string },
+  ) =>
+    request<EnterpriseApplication>(`/api/enterprise/applications/${slug}`, {
+      method: "PUT",
+      body: body(data),
+    }),
+
+  listApplicationLinks: () =>
+    request<ApplicationLink[]>("/api/enterprise/application-links"),
+  createApplicationLink: (
+    data: Partial<ApplicationLink> & {
+      source_app_slug: string;
+      target_app_slug: string;
+    },
+  ) =>
+    request<ApplicationLink>("/api/enterprise/application-links", {
+      method: "POST",
+      body: body(data),
+    }),
+
+  listDataObjects: () =>
+    request<DataObject[]>("/api/enterprise/data-objects"),
+  createDataObject: (data: Partial<DataObject> & { name: string }) =>
+    request<DataObject>("/api/enterprise/data-objects", {
+      method: "POST",
+      body: body(data),
+    }),
+
+  listDataDomains: () =>
+    request<DataDomain[]>("/api/enterprise/data-domains"),
+  createDataDomain: (data: Partial<DataDomain> & { name: string }) =>
+    request<DataDomain>("/api/enterprise/data-domains", {
+      method: "POST",
+      body: body(data),
+    }),
+
+  listTechnologyPlatforms: () =>
+    request<TechnologyPlatform[]>("/api/enterprise/technology-platforms"),
+  createTechnologyPlatform: (
+    data: Partial<TechnologyPlatform> & { name: string },
+  ) =>
+    request<TechnologyPlatform>("/api/enterprise/technology-platforms", {
+      method: "POST",
+      body: body(data),
+    }),
+
+  listStandards: () => request<Standard[]>("/api/enterprise/standards"),
+  createStandard: (data: Partial<Standard> & { title: string }) =>
+    request<Standard>("/api/enterprise/standards", {
+      method: "POST",
+      body: body(data),
+    }),
+
+  listPrinciples: () => request<Principle[]>("/api/enterprise/principles"),
+  createPrinciple: (data: Partial<Principle> & { title: string }) =>
+    request<Principle>("/api/enterprise/principles", {
+      method: "POST",
+      body: body(data),
+    }),
+
+  listEnterpriseApplicationGroups: () =>
+    request<
+      (ApplicationGroup & {
+        domain_slug: string | null;
+        archimate_type: string | null;
+      })[]
+    >("/api/enterprise/application-groups"),
+  createEnterpriseApplicationGroup: (data: {
+    name: string;
+    slug?: string;
+    domain_slug?: string | null;
+    description?: string;
+    archimate_type?: string | null;
+  }) =>
+    request<ApplicationGroup>("/api/enterprise/application-groups", {
+      method: "POST",
+      body: body(data),
+    }),
+
+  // --- HLD architecture context ----------------------------------------
+  getArchitectureContext: (documentId: number) =>
+    request<ArchitectureContext>(
+      `/api/hlds/${documentId}/architecture-context`,
+    ),
+  addContextLink: (
+    documentId: number,
+    objectType: ContextObjectType,
+    objectSlug: string,
+  ) =>
+    request<ArchitectureContext>(
+      `/api/hlds/${documentId}/links/${objectType}/${encodeURIComponent(
+        objectSlug,
+      )}`,
+      { method: "POST" },
+    ),
+  removeContextLink: (
+    documentId: number,
+    objectType: ContextObjectType,
+    objectSlug: string,
+  ) =>
+    request<ArchitectureContext>(
+      `/api/hlds/${documentId}/links/${objectType}/${encodeURIComponent(
+        objectSlug,
+      )}`,
+      { method: "DELETE" },
     ),
 };

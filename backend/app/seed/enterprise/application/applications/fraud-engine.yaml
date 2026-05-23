@@ -1,0 +1,10 @@
+application_id: fraud-engine
+name: Fraud Engine
+application_group_id: payment-modernization
+domain_id: payments
+type: business_application
+architecture_state: target
+lifecycle: in_production
+criticality: high
+owner: risk-engineering
+archimate_type: application_component

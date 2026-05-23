@@ -9,12 +9,22 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import (
+    DOC_TYPE_HLD,
     KIND_TEMPLATE_REQUIRED,
     REUSE_FORKED,
     REUSE_LINKED,
+    Application,
+    ArchitectureContextLink,
+    Capability,
+    DataObject,
     Document,
+    Domain,
     ExportJob,
+    Integration,
+    Principle,
     ReusableBlock,
+    Standard,
+    TechnologyPlatform,
     ValidationResult,
 )
 from app.schemas import (
@@ -197,6 +207,79 @@ def validate_document(document_id: int, db: Session = Depends(get_db)):
                         ),
                     )
                 )
+
+    # --- Phase 4: architecture context completeness ---------------------
+    if document.type == DOC_TYPE_HLD:
+        links = (
+            db.query(ArchitectureContextLink)
+            .filter_by(document_id=document_id)
+            .all()
+        )
+        types_present = {link.object_type for link in links}
+        for required, label in (
+            ("domain", "domain"),
+            ("application_group", "application group"),
+            ("architecture_increment", "architecture increment"),
+        ):
+            if required not in types_present:
+                items.append(
+                    ValidationItem(
+                        severity="warning",
+                        message=f"HLD has no linked {label}",
+                    )
+                )
+
+        # Verify every linked enterprise slug resolves.
+        _resolvers = {
+            "domain": Domain,
+            "capability": Capability,
+            "application": Application,
+            "data_object": DataObject,
+            "technology_platform": TechnologyPlatform,
+            "standard": Standard,
+            "principle": Principle,
+        }
+        for link in links:
+            model = _resolvers.get(link.object_type)
+            if model is None:
+                continue
+            if db.query(model).filter_by(slug=link.object_slug).first() is None:
+                items.append(
+                    ValidationItem(
+                        severity="warning",
+                        message=(
+                            f"HLD references unknown {link.object_type} "
+                            f"'{link.object_slug}'"
+                        ),
+                    )
+                )
+
+        # Cross-phase: integration source/target apps should be enterprise apps.
+        increment_integrations = (
+            db.query(Integration)
+            .filter_by(increment_id=document.increment_id)
+            .all()
+        )
+        if increment_integrations:
+            known_apps = {
+                a.slug for a in db.query(Application).all()
+            }
+            for integration in increment_integrations:
+                for role, value in (
+                    ("source", integration.source_application),
+                    ("target", integration.target_application),
+                ):
+                    if value and value not in known_apps:
+                        items.append(
+                            ValidationItem(
+                                severity="warning",
+                                message=(
+                                    f"Integration '{integration.name}' "
+                                    f"{role} application '{value}' is not a "
+                                    "known enterprise application"
+                                ),
+                            )
+                        )
 
     # Persist a snapshot of the latest validation run.
     db.query(ValidationResult).filter_by(document_id=document_id).delete()

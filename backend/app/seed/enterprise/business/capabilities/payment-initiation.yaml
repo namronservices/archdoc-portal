@@ -1,0 +1,6 @@
+capability_id: payment-initiation
+name: Payment Initiation
+domain_id: payments
+criticality: high
+archimate_type: business_capability
+description: Initiate a payment instruction from a customer channel.

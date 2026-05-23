@@ -1,35 +1,47 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Boxes,
   ChevronRight,
   Download,
+  LayoutDashboard,
   MessageSquare,
+  Network,
   Plug,
   Save,
 } from "lucide-react";
 import { Button } from "./ui";
 
 interface Props {
-  breadcrumb: Record<string, string>;
-  onSave: () => void;
-  onExport: (format: "docx" | "pdf") => void;
+  breadcrumb?: Record<string, string>;
+  onSave?: () => void;
+  onExport?: (format: "docx" | "pdf") => void;
   onOpenIntegrations?: () => void;
+  /** Hide the Dashboard/Enterprise top-nav links — e.g. on the dashboard itself. */
+  hideNav?: boolean;
 }
 
-/** Slim global header — brand, breadcrumb, primary document actions. */
+/** Slim global header — brand, top-nav, breadcrumb, primary document actions.
+ *
+ * Editor pages pass ``onSave``/``onExport`` to surface document actions; the
+ * dashboard omits them and just shows the navigation chrome.
+ */
 export default function AppHeader({
   breadcrumb,
   onSave,
   onExport,
   onOpenIntegrations,
+  hideNav = false,
 }: Props) {
   const [exportOpen, setExportOpen] = useState(false);
-  const crumbs = [
-    "Workspaces",
-    breadcrumb.repository,
-    breadcrumb.increment,
-    breadcrumb.document,
-  ].filter(Boolean);
+  const crumbs = breadcrumb
+    ? [
+        "Workspaces",
+        breadcrumb.repository,
+        breadcrumb.increment,
+        breadcrumb.document,
+      ].filter(Boolean)
+    : [];
 
   return (
     <header className="flex items-center gap-4 border-b border-slate-200 bg-white px-4 py-2">
@@ -46,6 +58,25 @@ export default function AppHeader({
           </div>
         </div>
       </div>
+
+      {!hideNav && (
+        <nav className="flex items-center gap-1 border-l border-slate-200 pl-3 text-xs text-slate-500">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1 rounded px-2 py-1 hover:bg-slate-100 hover:text-slate-800"
+          >
+            <LayoutDashboard size={13} />
+            Dashboard
+          </Link>
+          <Link
+            to="/enterprise"
+            className="inline-flex items-center gap-1 rounded px-2 py-1 hover:bg-slate-100 hover:text-slate-800"
+          >
+            <Network size={13} />
+            Enterprise
+          </Link>
+        </nav>
+      )}
 
       <nav className="flex min-w-0 items-center gap-1 text-sm text-slate-500">
         {crumbs.map((c, i) => (
@@ -71,43 +102,49 @@ export default function AppHeader({
             Integration Docs
           </Button>
         )}
-        <Button variant="primary" onClick={onSave}>
-          <Save size={15} />
-          Save
-        </Button>
-        <div className="relative">
+        {onSave && (
+          <Button variant="primary" onClick={onSave}>
+            <Save size={15} />
+            Save
+          </Button>
+        )}
+        {onExport && (
+          <div className="relative">
+            <Button
+              variant="secondary"
+              onClick={() => setExportOpen((v) => !v)}
+            >
+              <Download size={15} />
+              Export
+            </Button>
+            {exportOpen && (
+              <div className="absolute right-0 z-20 mt-1 w-32 overflow-hidden rounded-md border border-slate-200 bg-white shadow-panel">
+                {(["docx", "pdf"] as const).map((fmt) => (
+                  <button
+                    key={fmt}
+                    className="block w-full px-3 py-1.5 text-left text-sm hover:bg-slate-50"
+                    onClick={() => {
+                      setExportOpen(false);
+                      onExport(fmt);
+                    }}
+                  >
+                    {fmt.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {onSave && (
           <Button
             variant="secondary"
-            onClick={() => setExportOpen((v) => !v)}
+            disabled
+            title="Review is planned for a later phase"
           >
-            <Download size={15} />
-            Export
+            <MessageSquare size={15} />
+            Review
           </Button>
-          {exportOpen && (
-            <div className="absolute right-0 z-20 mt-1 w-32 overflow-hidden rounded-md border border-slate-200 bg-white shadow-panel">
-              {(["docx", "pdf"] as const).map((fmt) => (
-                <button
-                  key={fmt}
-                  className="block w-full px-3 py-1.5 text-left text-sm hover:bg-slate-50"
-                  onClick={() => {
-                    setExportOpen(false);
-                    onExport(fmt);
-                  }}
-                >
-                  {fmt.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        <Button
-          variant="secondary"
-          disabled
-          title="Review is planned for a later phase"
-        >
-          <MessageSquare size={15} />
-          Review
-        </Button>
+        )}
       </div>
     </header>
   );

@@ -1,0 +1,7 @@
+domain_id: payments
+name: Payments
+owner: business-architecture
+archimate_type: grouping
+description: |
+  Payment initiation, validation, execution, and reporting for retail and
+  corporate clients.

@@ -1,0 +1,7 @@
+application_group_id: payment-modernization
+name: Payment Modernization
+domain_id: payments
+archimate_type: grouping
+description: |
+  Initiative replacing the legacy payment platform with a modern, event-driven
+  architecture.

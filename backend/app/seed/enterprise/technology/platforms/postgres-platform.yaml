@@ -1,0 +1,6 @@
+technology_platform_id: postgres-platform
+name: PostgreSQL Platform
+type: database_platform
+owner: platform-engineering
+archimate_type: technology_service
+description: Managed PostgreSQL for transactional storage.

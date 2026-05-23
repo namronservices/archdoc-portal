@@ -1,0 +1,10 @@
+application_id: core-banking
+name: Core Banking
+application_group_id: payment-modernization
+domain_id: payments
+type: business_application
+architecture_state: current
+lifecycle: in_production
+criticality: high
+owner: core-banking-platform
+archimate_type: application_component

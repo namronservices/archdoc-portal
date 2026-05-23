@@ -1,0 +1,6 @@
+technology_platform_id: kafka-platform
+name: Kafka Platform
+type: messaging_platform
+owner: platform-engineering
+archimate_type: technology_service
+description: Managed Apache Kafka cluster for event streaming.

@@ -19,9 +19,11 @@ def _scaffold(client, repo_name: str = "Payment Phase3"):
     repo_id = client.post(
         "/api/repositories", json={"name": repo_name}
     ).json()["id"]
+    # App-group slugs are now enterprise-wide unique; derive a fresh slug per
+    # scaffold call so tests don't collide on shared state.
     group_id = client.post(
         f"/api/repositories/{repo_id}/application-groups",
-        json={"name": "Payments"},
+        json={"name": f"Payments — {repo_name}"},
     ).json()["id"]
     increment_id = client.post(
         "/api/increments",

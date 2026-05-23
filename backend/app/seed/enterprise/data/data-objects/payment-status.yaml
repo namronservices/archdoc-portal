@@ -1,0 +1,5 @@
+data_object_id: payment-status
+name: Payment Status
+domain_id: payments
+archimate_type: data_object
+description: Current lifecycle state of a payment instruction.
